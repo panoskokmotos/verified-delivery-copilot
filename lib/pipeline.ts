@@ -10,6 +10,7 @@ export type VerifyInput = {
   donorName: string;
   photo: Buffer;
   photoMime: string;
+  dryRun?: boolean; // eval runs: do not remember this photo for duplicate checks
 };
 
 type Emit = (e: StepEvent) => void;
@@ -108,7 +109,7 @@ export async function runVerification(input: VerifyInput, emit: Emit): Promise<V
   // Photo check, integrity, and org lookup run in parallel.
   const [v, integrity, org] = await Promise.all([
     step(emit, "vision", isLive() ? models.vision : undefined, () => vision(input, need)),
-    step(emit, "integrity", undefined, () => checkIntegrity(input.photo, id, need)),
+    step(emit, "integrity", undefined, () => checkIntegrity(input.photo, id, need, !input.dryRun)),
     step(emit, "org", process.env.TAVILY_API_KEY ? "tavily" : undefined, () => checkOrg(input.orgName, input.city)),
   ]);
 

@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     donorName: String(form.get("donorName") || "").slice(0, 100),
     photo: Buffer.from(await photo.arrayBuffer()),
     photoMime: photo.type,
+    dryRun: form.get("dryRun") === "1",
   };
   if (!input.requestText) return Response.json({ error: "Describe what the nonprofit asked for" }, { status: 400 });
 

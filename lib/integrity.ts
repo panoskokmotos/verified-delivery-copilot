@@ -46,7 +46,7 @@ function hamming(a: string, b: string) {
   return n;
 }
 
-export async function checkIntegrity(buf: Buffer, id: string, need: Need): Promise<IntegrityCheck> {
+export async function checkIntegrity(buf: Buffer, id: string, need: Need, persist = true): Promise<IntegrityCheck> {
   const flags: string[] = [];
   let photoTakenAt: string | null = null;
   let gps: IntegrityCheck["gps"] = null;
@@ -84,8 +84,10 @@ export async function checkIntegrity(buf: Buffer, id: string, need: Need): Promi
     if (d <= 6 && !duplicateOf) duplicateOf = s.id;
   }
   if (duplicateOf) flags.push(`Photo matches an earlier delivery (${duplicateOf}). Possible reuse.`);
-  seen.push({ hash, id, at: new Date().toISOString() });
-  await saveSeen(seen);
+  if (persist) {
+    seen.push({ hash, id, at: new Date().toISOString() });
+    await saveSeen(seen);
+  }
 
   return { photoTakenAt, hasExif, gps, hash, duplicateOf, nearDuplicateDistance: best, flags };
 }

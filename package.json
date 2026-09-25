@@ -8,7 +8,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "models": "node scripts/list-models.mjs"
+    "models": "node scripts/list-models.mjs",
+    "eval": "node scripts/eval.mjs"
   },
   "dependencies": {
     "exifr": "^7.1.3",
