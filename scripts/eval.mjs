@@ -10,7 +10,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 const BASE = process.env.EVAL_URL || "http://localhost:3000";
-const KEY = process.env.EVAL_API_KEY || (process.env.VDC_API_KEYS || "").split(",")[0];
+// Against a deployed copy (EVAL_URL) use its key; against the local dev server, the local key.
+const KEY = (process.env.EVAL_URL && process.env.EVAL_API_KEY) || (process.env.VDC_API_KEYS || "").split(",")[0] || process.env.EVAL_API_KEY;
 const MAX = Number(process.env.EVAL_MAX || 40); // each case costs 3 or 4 Nebius calls
 const ONLY = process.env.EVAL_ONLY ? new RegExp(process.env.EVAL_ONLY) : null; // run a subset, e.g. EVAL_ONLY=stripped
 const SETS = ["eval/real", "eval/fake"];
