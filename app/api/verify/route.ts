@@ -4,6 +4,7 @@ import { runVerification, type VerifyInput } from "../../../lib/pipeline";
 import { parseLatLon } from "../../../lib/geo";
 import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
+import { sendable } from "../../../lib/verified";
 import { getDelivery, preflight, saveVerification } from "../../../lib/store";
 import type { StepEvent, VerificationResult } from "../../../lib/types";
 
@@ -12,17 +13,6 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_BYTES = 8 * 1024 * 1024;
-
-/**
- * May the nonprofit send this check to donors? A complete check, yes. A partial one only when nothing
- * casts doubt on the photo itself: in the eval, screenshotted AI images mostly landed in "review",
- * and a doubtful photo must not reach donors as partial proof.
- */
-function sendable(r: VerificationResult): boolean {
-  if (r.mode !== "live") return false; // a simulated check proves nothing
-  if (r.decision.verdict === "approve") return true;
-  return r.decision.verdict === "review" && r.vision.aiSuspicion === "none" && r.integrity.flags.length === 0 && !r.integrity.aiLabel;
-}
 
 /** A warning when the photo was taken more than a day before the delivery was due, else null. */
 function beforeArrival(arrivesAt: string, takenAt: string | null | undefined): string | null {
@@ -99,7 +89,7 @@ export async function POST(req: Request) {
         if (delivery) {
           const early = beforeArrival(delivery.arrivesAt, result.capture.inApp ? new Date().toISOString() : result.integrity.photoTakenAt);
           if (early) {
-            // A photo from before the goods arrived can't show them. Never "complete", and never sendable.
+            // A photo from before the goods arrived can't show them: never "complete", never verified.
             result.integrity.flags.push(early);
             result.decision.reasons.unshift(early);
             if (result.decision.verdict === "approve") result.decision.verdict = "review";
@@ -112,7 +102,7 @@ export async function POST(req: Request) {
           if (result.integrity.aiLabel === "generated" || result.integrity.duplicateOf) {
             await saveVerification({ ...delivery, status: "reject", updatedAt: new Date().toISOString(), result }, normalized);
           } else if (sendable(result)) {
-            // Complete, or genuine but partial: the nonprofit may send it. The receipt says which items show.
+            // Anything short of a proven fake may be sent. The receipt says whether it passed and which items show.
             confirmToken = signCheck(delivery.id, raw, JSON.stringify(result));
           }
         }

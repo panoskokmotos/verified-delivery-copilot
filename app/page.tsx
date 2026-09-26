@@ -6,8 +6,9 @@ export default function Home() {
       <header>
         <h1>Verified Delivery Copilot</h1>
         <p>
-          Donors give goods, then rarely learn if they arrived. Here the nonprofit takes one delivery photo, an AI agent checks every item
-          each donor gave and whether the photo is genuine, and donors get the proof only when it holds up.
+          On giving platforms like Givelink, donors get a photo when their gift reaches the nonprofit. But anyone can now make a convincing
+          delivery photo with a free AI tool in seconds. This agent checks that each photo is genuine and shows every item the donors gave,
+          so the proof holds up for donors, for auditors, and for everyone who relies on it.
         </p>
       </header>
 
@@ -19,8 +20,8 @@ export default function Home() {
             <div>
               <div className="title">Be the nonprofit</div>
               <div className="sub">
-                Open <Link href="/nonprofit/lantern-school">Lantern After-School Club</Link>. Its delivery of notebooks, pencils and backpacks
-                has arrived. Tap <b>Open camera</b> and photograph anything around you, or choose a photo.
+                Open <Link href="/nonprofit">Deliveries</Link> and pick any delivery marked <b>Arrived</b>. Tap <b>Open camera</b> and
+                photograph anything around you, or choose a photo.
               </div>
             </div>
           </li>
@@ -30,7 +31,7 @@ export default function Home() {
               <div className="title">Watch the agent check it</div>
               <div className="sub">
                 About 15 to 40 seconds. Each product gets a green tick only if the photo shows it. A random photo is rejected; a photo of
-                notebooks and pencils passes.
+                the donated items passes.
               </div>
             </div>
           </li>
@@ -39,8 +40,8 @@ export default function Home() {
             <div>
               <div className="title">Send it, then be the donor</div>
               <div className="sub">
-                If it passes, tap <b>Send proof</b>. Then open <Link href="/donor/maria">Maria&apos;s gifts</Link> to see her items marked in the
-                photo, the receipt, and the share link.
+                Tap <b>Send proof</b>. Then open <Link href="/donor">Donors</Link> and pick one of that delivery&apos;s donors to see their
+                items marked in the photo, the receipt, and the share link.
               </div>
             </div>
           </li>
@@ -54,7 +55,7 @@ export default function Home() {
           </ul>
         </div>
         <div className="guide-cta">
-          <Link className="btn gradient" href="/nonprofit/lantern-school">Start as the nonprofit</Link>
+          <Link className="btn gradient" href="/nonprofit">Start as the nonprofit</Link>
           <Link className="btn subtle" href="/try">Or check any photo against any request</Link>
         </div>
         <p className="sub" style={{ marginTop: 12 }}>

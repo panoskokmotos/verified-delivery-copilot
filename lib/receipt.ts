@@ -1,3 +1,4 @@
+import { verified } from "./verified";
 import type { Delivery } from "./types";
 
 // Open delivery receipt, format "delivery-receipt/v1". Schema: docs/receipt.schema.json.
@@ -31,9 +32,10 @@ export type Receipt = {
     locationSharedWithPlatform: boolean;
     packingSlipMatchesOrder: boolean | null;
     complete: boolean;
+    passedCheck: boolean; // false: the nonprofit sent it without the photo passing the check
     confirmedByNonprofit: boolean;
   };
-  verdict: "complete" | "partial";
+  verdict: "complete" | "partial" | "unverified";
   score: number;
   limits: string[];
   thankYouNote: string | null;
@@ -78,9 +80,10 @@ export function toReceipt(d: Delivery, origin: string): Receipt | null {
       locationSharedWithPlatform: Boolean(r.capture?.location),
       packingSlipMatchesOrder: r.vision.slip?.matchesOrder ?? null,
       complete,
+      passedCheck: verified(r),
       confirmedByNonprofit: true,
     },
-    verdict: complete ? "complete" : "partial",
+    verdict: !verified(r) ? "unverified" : complete ? "complete" : "partial",
     score: r.decision.score,
     limits: receiptLimits(d),
     thankYouNote: d.thankYouNote ?? null,

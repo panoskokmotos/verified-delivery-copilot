@@ -190,8 +190,8 @@ export function Verdict({ result }: { result: VerificationResult }) {
       </div>
       {doubtful && (
         <div className="notice">
-          <div className="title">We can't send this one to donors</div>
-          <div>{result.vision.concerns.join(". ") || "Parts of the photo look generated or edited."} Please take a new photo of the items with your phone camera.</div>
+          <div className="title">We can't verify this photo</div>
+          <div>{result.vision.concerns.join(". ") || "Something about this photo doesn't hold up."} Please take a new photo of the items with your phone camera.</div>
         </div>
       )}
       {result.decision.verdict === "review" && !doubtful && (

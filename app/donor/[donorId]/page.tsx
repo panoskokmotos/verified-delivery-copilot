@@ -6,6 +6,7 @@ import type { Delivery } from "../../../lib/types";
 import { DonorItems } from "../../donor-items";
 import { DONOR_STATUS, fmtDate } from "../../labels";
 import { Questions } from "../../questions";
+import { verified } from "../../../lib/verified";
 import { ShareButton } from "../../share-button";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,11 @@ export default async function DonorGifts({ params }: { params: Promise<{ donorId
                   <div className="sub">To {d.orgName}, {d.city} · part of a delivery from {d.donations.length} donors</div>
                 </div>
                 <span className={`pill ${proven ? (d.result!.vision.itemChecks.every((c) => c.status === "seen") ? "success" : "warning") : "pending"}`}>
-                  {proven && !d.result!.vision.itemChecks.every((c) => c.status === "seen") ? "Delivered · partly shown in photo" : DONOR_STATUS[d.status]}
+                  {proven && !verified(d.result!)
+                    ? "Delivered · photo not verified"
+                    : proven && !d.result!.vision.itemChecks.every((c) => c.status === "seen")
+                      ? "Delivered · partly shown in photo"
+                      : DONOR_STATUS[d.status]}
                 </span>
               </div>
               <Timeline d={d} />

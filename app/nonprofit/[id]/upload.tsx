@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { allItems } from "../../../lib/items";
+import { verified } from "../../../lib/verified";
 import type { Delivery } from "../../../lib/types";
 import { Camera, type Shot } from "../../camera";
 import { Products } from "../../products";
@@ -67,13 +68,25 @@ export function Upload({ delivery }: { delivery: Delivery }) {
           </p>
         )}
         {last && <Verdict result={last} />}
+        {canConfirm && result && !verified(result) && (
+          <div className="notice danger">
+            <div className="title">You can still send it, marked &quot;Not verified&quot;</div>
+            <div>Donors will see this photo with a Not verified label and what the check found. A retake that passes is better for them.</div>
+          </div>
+        )}
         {canConfirm && (
           <>
             <label htmlFor="note">Thank-you note to all {n} donors</label>
             <textarea id="note" className="note-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What do these items unlock for your work?" />
             <p className="sub">We drafted this from your photo. Make it yours.</p>
             <button className="btn gradient block" disabled={busy || !note.trim()} onClick={() => confirm(delivery.id, note)}>
-              {busy ? "Sending…" : result?.decision.verdict === "review" ? `Send as is to all ${n} donors` : `Send proof to all ${n} donors`}
+              {busy
+                ? "Sending…"
+                : result && !verified(result)
+                  ? `Send anyway, marked Not verified`
+                  : result?.decision.verdict === "review"
+                    ? `Send as is to all ${n} donors`
+                    : `Send proof to all ${n} donors`}
             </button>
           </>
         )}

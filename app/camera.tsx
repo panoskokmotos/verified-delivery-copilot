@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Area } from "react-easy-crop";
+import { CropPhoto } from "./crop";
 import { blurFaces, findFaces, type Box } from "./face-blur";
 
 /** What gets sent for checking: faces already blurred, plus how and where it was taken. */
@@ -40,6 +42,7 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
   const [source, setSource] = useState<{ canvas: HTMLCanvasElement; faces: Box[]; inApp: boolean; meta?: Blob; name: string } | null>(null);
   const [shot, setShot] = useState<Shot | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [cropping, setCropping] = useState(false);
 
   useEffect(() => () => live?.getTracks().forEach((t) => t.stop()), [live]);
 
@@ -94,6 +97,17 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
     await process(await toCanvas(bmp, bmp.width, bmp.height), false, f.name, f.slice(0, 512 * 1024));
   }
 
+  // Cut the unblurred photo to the chosen area, then look for faces again in what's left.
+  async function applyCrop(a: Area) {
+    if (!source) return;
+    setCropping(false);
+    const c = document.createElement("canvas");
+    c.width = Math.round(a.width);
+    c.height = Math.round(a.height);
+    c.getContext("2d")!.drawImage(source.canvas, a.x, a.y, a.width, a.height, 0, 0, c.width, c.height);
+    await process(c, source.inApp, source.name, source.meta);
+  }
+
   // Build what gets sent whenever the photo or the consent switch changes.
   useEffect(() => {
     if (!source) return;
@@ -121,6 +135,8 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
           <video ref={video} autoPlay playsInline muted className="viewfinder" />
           <button className="btn primary block" onClick={takePhoto}>📸 Take photo</button>
         </>
+      ) : shot && cropping ? (
+        <CropPhoto preview={shot.preview} onDone={applyCrop} onCancel={() => setCropping(false)} />
       ) : shot ? (
         <img src={shot.preview} alt="Delivery photo" className="viewfinder" />
       ) : (
@@ -162,6 +178,7 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
       )}
       {status && <p className="sub">{status}</p>}
       <div className="alt">
+        {shot && !disabled && !cropping && <button className="link" onClick={() => setCropping(true)}>Crop or zoom</button>}
         {shot && !disabled && <button className="link" onClick={openCamera}>Retake</button>}
         <button className="link" onClick={() => fileRef.current?.click()} disabled={disabled}>No camera? Choose a photo</button>
       </div>

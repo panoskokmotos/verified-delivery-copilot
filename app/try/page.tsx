@@ -5,14 +5,15 @@ import { Camera, type Shot } from "../camera";
 import { StepList, Verdict, useVerify } from "../verify-ui";
 
 const SAMPLES = [
-  { label: "Shelter: winter coats", requestText: "We need 40 new winter coats, adult sizes M to XL, for our overnight shelter before Dec 15.", orgName: "Northgate Family Shelter (demo)", city: "Oakland, CA", donorName: "Maria" },
-  { label: "Pantry: diapers", requestText: "Food pantry needs 12 packs of size 4 diapers, sealed, any brand.", orgName: "Bluebell Community Pantry (demo)", city: "Austin, TX", donorName: "Acme Corp CSR team" },
-  { label: "Animal rescue: dog food", requestText: "Please send 10 bags of dry dog food, 30 lb bags, unopened.", orgName: "Paws of Hope Rescue (demo)", city: "Los Angeles, CA", donorName: "Daniel" },
+  { label: "Winter coats", requestText: "10 adult winter coats, sizes M to XL" },
+  { label: "Diapers", requestText: "12 packs of size 4 diapers, sealed" },
+  { label: "Dog food", requestText: "4 bags of dry dog food, 30 lb" },
+  { label: "School supplies", requestText: "30 spiral notebooks, 10 packs of pencils, 5 kids backpacks" },
 ];
 
 // Open tool: check any photo against any request. Nothing is saved.
 export default function Try() {
-  const [form, setForm] = useState({ requestText: "", orgName: "", city: "", donorName: "" });
+  const [form, setForm] = useState({ requestText: "" });
   const [shot, setShot] = useState<Shot | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const { steps, result, error, busy, run } = useVerify();
@@ -23,33 +24,21 @@ export default function Try() {
       <header>
         <a className="back" href="/">← Home</a>
         <h1>Try any photo</h1>
-        <p>Check a delivery photo against any request. Nothing is saved.</p>
+        <p>Type what was donated, or pick an example, then add a photo. The agent checks whether the photo shows it. Nothing is saved.</p>
       </header>
 
       <div className="grid">
         <section className="card">
-          <h2>1 · The request and the proof</h2>
+          <h2>1 · What was donated, and the photo</h2>
           <div className="samples">
             {SAMPLES.map(({ label, ...s }) => (
               <button key={label} type="button" onClick={() => setForm(s)}>{label}</button>
             ))}
           </div>
-          <label htmlFor="req">What the nonprofit asked for</label>
-          <textarea id="req" value={form.requestText} onChange={(e) => setForm({ ...form, requestText: e.target.value })} placeholder="We need 40 new winter coats, adult M to XL, before Dec 15" />
-          <div className="row">
-            <div>
-              <label htmlFor="org">Nonprofit</label>
-              <input id="org" type="text" value={form.orgName} onChange={(e) => setForm({ ...form, orgName: e.target.value })} />
-            </div>
-            <div>
-              <label htmlFor="city">City</label>
-              <input id="city" type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-            </div>
-          </div>
-          <label htmlFor="donor">Donor</label>
-          <input id="donor" type="text" value={form.donorName} onChange={(e) => setForm({ ...form, donorName: e.target.value })} />
+          <label htmlFor="req">What was donated</label>
+          <textarea id="req" value={form.requestText} onChange={(e) => setForm({ requestText: e.target.value })} placeholder="e.g. 10 adult winter coats, sizes M to XL" />
           <Camera onShot={onShot} disabled={busy} />
-          <button className="btn primary block" disabled={busy} onClick={() => (shot ? (setLocalError(null), run(shot, form)) : setLocalError("Add a delivery photo first."))}>
+          <button className="btn primary block" disabled={busy} onClick={() => (shot ? (setLocalError(null), run(shot, { ...form, orgName: "the nonprofit" })) : setLocalError(form.requestText ? "Add a photo first." : "Say what was donated first, or pick an example."))}>
             {busy ? "Verifying…" : "Verify delivery"}
           </button>
           {(localError || error) && <p className="err">{localError || error}</p>}

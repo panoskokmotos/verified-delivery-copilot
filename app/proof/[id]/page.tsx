@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { allItems, itemCount } from "../../../lib/items";
 import { costOf, usd } from "../../../lib/prices";
+import { verified } from "../../../lib/verified";
 import { receiptLimits } from "../../../lib/receipt";
 import { getDelivery } from "../../../lib/store";
 import type { Delivery } from "../../../lib/types";
@@ -68,7 +69,9 @@ export default async function Receipt({ params, searchParams }: { params: Promis
       <div className="card">
         <div className="receipt-head">
           <div>
-            {complete ? (
+            {!verified(r) ? (
+              <span className="pill danger">⚠ Not verified: sent without passing the photo check</span>
+            ) : complete ? (
               <span className="pill success">✓ Delivery verified</span>
             ) : (
               <span className="pill warning">✓ Genuine photo · {seenCount} of {r.vision.itemChecks.length} products fully visible</span>

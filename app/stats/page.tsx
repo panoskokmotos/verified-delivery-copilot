@@ -12,7 +12,7 @@ export default async function StatsPage() {
     ["Items proven in photos", String(s.itemsProven)],
     ["Value proven", money(s.valueProven)],
     ["Fakes stopped", String(s.fakesStopped)],
-    ["Complete / partial", `${s.complete} / ${s.partial}`],
+    ["Complete / partial / not verified", `${s.complete} / ${s.partial} / ${s.unverified}`],
     ["Median days, arrival to proof", s.medianDaysToProof === null ? "n/a" : String(s.medianDaysToProof)],
   ];
   return (

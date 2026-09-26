@@ -3,6 +3,7 @@ import { allItems } from "../lib/items";
 import type { Delivery } from "../lib/types";
 import { BAR, ago, fmtDate } from "./labels";
 import { Products } from "./products";
+import { verified } from "../lib/verified";
 
 /** The coloured status bar on top of a delivery. */
 export function DeliveryBar({ d }: { d: Delivery }) {
@@ -38,7 +39,9 @@ function StatePanel({ d, linked }: { d: Delivery; linked: boolean }) {
         <span className="icon">✓</span>
         <div className="grow">
           <div className="title">Proof shared with {n} donors</div>
-          <div className="sub">Every item was checked against your photo.</div>
+          <div className="sub">
+            {d.result && !verified(d.result) ? "Sent without passing the check: donors see it marked Not verified." : "Every item was checked against your photo."}
+          </div>
         </div>
       </div>
     );

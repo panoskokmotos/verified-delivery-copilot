@@ -1,5 +1,6 @@
 import { allItems, itemValue } from "./items";
 import type { Delivery } from "./types";
+import { verified } from "./verified";
 
 // Open impact data: what got delivered and proven, by cause. No donor names.
 
@@ -8,6 +9,7 @@ export type Stats = {
   proofsShared: number;
   complete: number; // every product visible
   partial: number; // genuine photo, some products not visible
+  unverified: number; // sent by the nonprofit without passing the check; proves nothing
   fakesStopped: number; // AI-labeled, reused or visibly AI photos, rejected
   waitingForProof: number;
   itemsProven: number; // units visible in shared proof, capped at what was given
@@ -24,6 +26,7 @@ function proven(d: Delivery) {
   const items = allItems(d);
   let units = 0;
   let value = 0;
+  if (!d.result || !verified(d.result)) return { units, value }; // an unverified photo proves nothing
   for (const c of d.result?.vision.itemChecks ?? []) {
     const n = Math.min(c.seen ?? (c.status === "seen" ? c.expected : 0), c.expected);
     units += n;
@@ -42,8 +45,9 @@ export function computeStats(all: Delivery[]): Stats {
   return {
     deliveries: all.length,
     proofsShared: done.length,
-    complete: done.filter((d) => d.result!.vision.itemChecks.every((c) => c.status === "seen")).length,
-    partial: done.filter((d) => !d.result!.vision.itemChecks.every((c) => c.status === "seen")).length,
+    complete: done.filter((d) => verified(d.result!) && d.result!.vision.itemChecks.every((c) => c.status === "seen")).length,
+    partial: done.filter((d) => verified(d.result!) && !d.result!.vision.itemChecks.every((c) => c.status === "seen")).length,
+    unverified: done.filter((d) => !verified(d.result!)).length,
     fakesStopped: all.filter(fake).length,
     waitingForProof: all.filter((d) => d.status !== "approve" && d.status !== "shipping").length,
     itemsProven: done.reduce((a, d) => a + proven(d).units, 0),
@@ -63,7 +67,7 @@ export function computeStats(all: Delivery[]): Stats {
 
 /** One row per delivery, for researchers and funders. */
 export function statsCsv(all: Delivery[]): string {
-  const head = ["delivery_id", "cause", "city", "supplier", "arrived", "status", "donors", "items_given", "value_given_usd", "items_proven", "value_proven_usd", "complete", "ai_label", "reused_photo", "proof_shared_at"];
+  const head = ["delivery_id", "cause", "city", "supplier", "arrived", "status", "donors", "items_given", "value_given_usd", "items_proven", "value_proven_usd", "complete", "passed_check", "ai_label", "reused_photo", "proof_shared_at"];
   const esc = (v: unknown) => {
     const s = v === null || v === undefined ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -78,6 +82,7 @@ export function statsCsv(all: Delivery[]): string {
       d.donations.length, items.reduce((a, i) => a + i.quantity, 0), itemValue(items),
       shared(d) ? p.units : "", shared(d) ? Math.round(p.value) : "",
       r ? r.vision.itemChecks.every((c) => c.status === "seen") : "",
+      shared(d) ? verified(r!) : "",
       r?.integrity.aiLabel ?? "", r ? Boolean(r.integrity.duplicateOf) : "",
       shared(d) ? d.updatedAt : "",
     ].map(esc).join(",");

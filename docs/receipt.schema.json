@@ -84,10 +84,11 @@
         "locationSharedWithPlatform": { "type": "boolean", "description": "The phone's location was shared with the platform at capture. Never published." },
         "packingSlipMatchesOrder": { "type": ["boolean", "null"], "description": "A readable packing slip shows this delivery's order code. null if no slip was readable." },
         "complete": { "type": "boolean", "description": "Every product fully visible." },
+        "passedCheck": { "type": "boolean", "description": "false when the nonprofit sent the photo without it passing the check" },
         "confirmedByNonprofit": { "type": "boolean" }
       }
     },
-    "verdict": { "enum": ["complete", "partial"], "description": "partial: the photo is genuine but doesn't show every product." },
+    "verdict": { "enum": ["complete", "partial", "unverified"], "description": "partial: the photo is genuine but doesn't show every product. unverified: the nonprofit sent it without the photo passing the check." },
     "score": { "type": "integer", "minimum": 0, "maximum": 100 },
     "limits": { "type": "array", "items": { "type": "string" }, "description": "What this check could not establish." },
     "thankYouNote": { "type": ["string", "null"], "description": "Written by the nonprofit." },
