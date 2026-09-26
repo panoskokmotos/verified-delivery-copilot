@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { allItems, itemCount } from "../../../lib/items";
+import { costOf, usd } from "../../../lib/prices";
 import { receiptLimits } from "../../../lib/receipt";
 import { getDelivery } from "../../../lib/store";
 import type { Delivery } from "../../../lib/types";
@@ -48,7 +49,9 @@ export default async function Receipt({ params, searchParams }: { params: Promis
         </header>
       </main>
     );
-  }
+  }  // Priced from the stored usage, so older receipts pick up prices added later.
+  const cost = r.usage ? costOf(r.usage).usd : r.cost?.usd;
+
 
   const path = `/proof/${d.id}${donor ? `?donor=${donor.donorId}` : ""}`;
   const back = donor ? { href: `/donor/${donor.donorId}`, label: `← ${donor.donorName}'s gifts` } : { href: "/stats", label: "← All deliveries" };
@@ -149,7 +152,7 @@ export default async function Receipt({ params, searchParams }: { params: Promis
           <dt>Checked at</dt><dd>{d.updatedAt}</dd>
           <dt>Score</dt><dd>{r.decision.score}/100</dd>
           <dt>Cost of this check</dt>
-          <dd>{r.cost ? `${r.cost.tokens.toLocaleString("en-US")} tokens${r.cost.usd !== null ? ` · $${r.cost.usd.toFixed(4)}` : ""}` : "n/a"}</dd>
+          <dd>{cost != null ? usd(cost) : "n/a"}</dd>
           <dt>Photo SHA-256</dt><dd>{d.photoSha256 ?? "n/a"}</dd>
           <dt>Photo fingerprint</dt><dd>{r.integrity.hash} (dHash, catches reuse)</dd>
           <dt>Models</dt>

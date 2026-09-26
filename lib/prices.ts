@@ -1,10 +1,16 @@
 // USD per 1M tokens, [input, output], for the cost shown on each check.
-// Token Factory prices sit behind the account login, so the defaults below are only the ones with a
-// public source. Set the rest from your pricing page:
-//   NEBIUS_PRICES={"nvidia/nemotron-3-super-120b-a12b":[0.3,0.8], ...}
+// Public Token Factory list prices (getmaxim.ai Nebius cost calculator, Sept 2026). Override any of them
+// from your pricing page: NEBIUS_PRICES={"nvidia/nemotron-3-super-120b-a12b":[0.3,0.9], ...}
 const PUBLIC: Record<string, [number, number]> = {
-  "google/gemma-3-27b-it": [0.1, 0.3], // getmaxim.ai Nebius cost calculator, Sept 2026
+  "google/gemma-3-27b-it": [0.1, 0.3],
+  "openbmb/MiniCPM-V-4_5": [0.66, 1.11],
+  "nvidia/nemotron-3-super-120b-a12b": [0.3, 0.9],
+  "nvidia/Nemotron-3-Ultra-550b-a55b": [1, 3],
+  "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B": [0.06, 0.24],
 };
+
+/** Dollars at the precision a single check needs: $0.0031, not $0.00. */
+export const usd = (n: number) => `$${n < 0.01 ? n.toFixed(4) : n.toFixed(2)}`;
 
 function table(): Record<string, [number, number]> {
   try {

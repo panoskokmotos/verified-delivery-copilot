@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usd } from "../lib/prices";
 import type { IntegrityCheck, ItemCheck, Need, StepEvent, StepName, VerificationResult, VisionCheck } from "../lib/types";
 
 export const STEPS: { key: StepName; title: string; what: string }[] = [
@@ -208,15 +209,14 @@ export function Verdict({ result }: { result: VerificationResult }) {
   );
 }
 
-/** What this check cost: tokens always, dollars when every model's price is known. */
+/** What this check cost in dollars. Hidden when a model has no known price. */
 export function CheckCost({ result }: { result: VerificationResult }) {
   const c = result.cost;
-  if (!c || result.mode !== "live") return null;
+  if (!c || c.usd === null || result.mode !== "live") return null;
   const calls = result.usage?.length ?? 0;
   return (
     <p className="cost">
-      This check: {calls} model {calls === 1 ? "call" : "calls"}, {c.tokens.toLocaleString("en-US")} tokens
-      {c.usd !== null ? ` · $${c.usd.toFixed(4)}` : " · add prices for the other models to see the dollar cost"}
+      This check cost {usd(c.usd)} ({calls} model {calls === 1 ? "call" : "calls"})
     </p>
   );
 }
