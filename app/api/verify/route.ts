@@ -4,13 +4,23 @@ import { parseLatLon } from "../../../lib/geo";
 import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
 import { getDelivery, preflight, saveVerification } from "../../../lib/store";
-import type { StepEvent } from "../../../lib/types";
+import type { StepEvent, VerificationResult } from "../../../lib/types";
 
 export const runtime = "nodejs";
 // The vision model sometimes takes 30 to 45s under load, so leave headroom.
 export const maxDuration = 120;
 
 const MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * May the nonprofit send this check to donors? A complete check, yes. A partial one only when nothing
+ * casts doubt on the photo itself: in the eval, screenshotted AI images mostly landed in "review",
+ * and a doubtful photo must not reach donors as partial proof.
+ */
+function sendable(r: VerificationResult): boolean {
+  if (r.decision.verdict === "approve") return true;
+  return r.decision.verdict === "review" && r.vision.aiSuspicion === "none" && r.integrity.flags.length === 0 && !r.integrity.aiLabel;
+}
 
 export async function POST(req: Request) {
   const form = await req.formData();
@@ -75,7 +85,7 @@ export async function POST(req: Request) {
           // AI-labeled or reused photos are the exception, recorded right away so fakes can't be retried quietly.
           if (result.integrity.aiLabel === "generated" || result.integrity.duplicateOf) {
             await saveVerification({ ...delivery, status: "reject", updatedAt: new Date().toISOString(), result }, normalized);
-          } else if (result.decision.verdict !== "reject") {
+          } else if (sendable(result)) {
             // Complete, or genuine but partial: the nonprofit may send it. The receipt says which items show.
             confirmToken = signCheck(delivery.id, raw, JSON.stringify(result));
           }

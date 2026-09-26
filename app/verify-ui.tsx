@@ -176,18 +176,25 @@ const HEADLINE = { approve: "Every item checks out", review: "Genuine photo, som
 
 export function Verdict({ result }: { result: VerificationResult }) {
   const flags = result.integrity.flags.filter((f) => !result.decision.reasons.includes(f));
-  const approved = result.decision.verdict === "approve";
+  // A "review" with visual AI signs or integrity flags is about the photo, not missing items.
+  const doubtful = result.decision.verdict === "review" && (result.vision.aiSuspicion !== "none" || flags.length > 0 || Boolean(result.integrity.aiLabel));
   return (
     <>
       <ItemChecks checks={result.vision.itemChecks} />
       <div className={`verdict ${result.decision.verdict}`}>
         <div className="big">
-          {HEADLINE[result.decision.verdict]} · {result.decision.score}/100
+          {doubtful ? "Retake needed: this photo may not be genuine" : HEADLINE[result.decision.verdict]} · {result.decision.score}/100
         </div>
         <ul>{result.decision.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
         {result.decision.verdict === "reject" && <div className="next">Next: {result.decision.nextAction}</div>}
       </div>
-      {result.decision.verdict === "review" && (
+      {doubtful && (
+        <div className="notice">
+          <div className="title">We can't send this one to donors</div>
+          <div>{result.vision.concerns.join(". ") || "Parts of the photo look generated or edited."} Please take a new photo of the items with your phone camera.</div>
+        </div>
+      )}
+      {result.decision.verdict === "review" && !doubtful && (
         <div className="notice">
           <div className="title">Heads up: not everything shows in this photo</div>
           <ul>
