@@ -14,19 +14,22 @@ export const dynamic = "force-dynamic";
 function Timeline({ d }: { d: Delivery }) {
   const arrived = d.status !== "shipping";
   const proven = d.status === "approve";
-  const steps: { label: string; state: "done" | "now" | ""; tag?: string }[] = [
+  const passed = proven && Boolean(d.result) && verified(d.result!);
+  const steps: { label: string; state: "done" | "now" | "failed" | ""; tag?: string }[] = [
     { label: "Items purchased", state: "done" },
     { label: "Shipment scheduled", state: "done" },
     { label: `Items being delivered by ${d.supplier}`, state: arrived ? "done" : "now", tag: "Usually a few days" },
     { label: arrived ? `Items delivered ${fmtDate(d.arrivesAt)}` : "Items delivered", state: arrived ? "done" : "" },
     { label: `${d.orgName} sends you a photo`, state: proven ? "done" : arrived ? "now" : "", tag: "Straight from the nonprofit" },
-    { label: "Every item checked against the photo", state: proven ? "done" : "" },
+    proven && !passed
+      ? { label: "The photo didn't pass the check", state: "failed" }
+      : { label: "Every item checked against the photo", state: passed ? "done" : "" },
   ];
   return (
     <ol className="timeline">
       {steps.map((s, i) => (
         <li key={i} className={s.state}>
-          <span className="tick">{s.state === "done" ? "✓" : i + 1}</span>
+          <span className="tick">{s.state === "done" ? "✓" : s.state === "failed" ? "!" : i + 1}</span>
           <div className={s.state ? "" : "sub"}>
             {s.label}
             {s.tag && s.state === "now" && <span className="tag">{s.tag}</span>}

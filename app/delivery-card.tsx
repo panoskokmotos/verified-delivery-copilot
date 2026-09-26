@@ -7,9 +7,11 @@ import { verified } from "../lib/verified";
 
 /** The coloured status bar on top of a delivery. */
 export function DeliveryBar({ d }: { d: Delivery }) {
+  // Sent without passing the check: completed, but it must not look like a verified delivery.
+  const unverified = d.status === "approve" && d.result && !verified(d.result);
   return (
-    <div className={`bar ${d.status}`}>
-      <span>{BAR[d.status]}</span>
+    <div className={`bar ${unverified ? "unverified" : d.status}`}>
+      <span>{unverified ? "Completed · not verified" : BAR[d.status]}</span>
       {d.status === "shipping" && <span className="when">Arrives: {fmtDate(d.arrivesAt)}</span>}
       {(d.status === "awaiting_photo" || d.status === "review" || d.status === "reject") && <span className="ago">{ago(d.arrivesAt)}</span>}
       {d.status === "approve" && <span className="when">Arrived: {fmtDate(d.arrivesAt)}</span>}
@@ -34,9 +36,10 @@ function StatePanel({ d, linked }: { d: Delivery; linked: boolean }) {
     );
   }
   if (d.status === "approve") {
+    const ok = !d.result || verified(d.result);
     return (
-      <div className="state approve">
-        <span className="icon">✓</span>
+      <div className={`state ${ok ? "approve" : "unverified"}`}>
+        <span className="icon">{ok ? "✓" : "!"}</span>
         <div className="grow">
           <div className="title">Proof shared with {n} donors</div>
           <div className="sub">

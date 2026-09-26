@@ -268,3 +268,8 @@ h1, h2, .title { overflow-wrap: anywhere; }
 .crop-zoom input { flex: 1; accent-color: var(--primary); }
 .crop-actions { display: flex; gap: 10px; margin-top: 12px; }
 .crop-actions .btn { flex: 1; }
+.bar.unverified { background: var(--danger); }
+.state.unverified { background: var(--soft-danger); }
+.state.unverified .icon { background: var(--danger); color: #fff; }
+.timeline .failed .tick { background: var(--danger); color: #fff; }
+.timeline .failed { color: var(--danger); }
