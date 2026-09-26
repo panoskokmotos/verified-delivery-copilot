@@ -87,6 +87,9 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
 
   async function pickFile(f: File | null) {
     if (!f) return;
+    // A chosen photo replaces the live camera: close it so the preview shows the chosen photo.
+    live?.getTracks().forEach((t) => t.stop());
+    setLive(null);
     const bmp = await createImageBitmap(f);
     await process(await toCanvas(bmp, bmp.width, bmp.height), false, f.name, f.slice(0, 512 * 1024));
   }
@@ -162,7 +165,10 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
         {shot && !disabled && <button className="link" onClick={openCamera}>Retake</button>}
         <button className="link" onClick={() => fileRef.current?.click()} disabled={disabled}>No camera? Choose a photo</button>
       </div>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => {
+          pickFile(e.target.files?.[0] ?? null);
+          e.target.value = ""; // choosing the same file again still counts
+        }} />
     </div>
   );
 }

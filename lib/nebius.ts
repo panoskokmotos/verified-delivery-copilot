@@ -33,9 +33,10 @@ function nebius() {
     client = new OpenAI({
       apiKey: process.env.NEBIUS_API_KEY,
       baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1",
-      // The SDK default is 10 minutes with 2 retries. One slow model call must not stall a delivery check.
-      timeout: 60_000,
-      maxRetries: 1,
+      // The SDK default is 10 minutes with 2 retries. One slow model call must not stall a delivery check:
+      // no retries (vision has its own fallback model), so the worst case is about 40s x 4 calls, inside maxDuration.
+      timeout: 40_000,
+      maxRetries: 0,
     });
   }
   return client;

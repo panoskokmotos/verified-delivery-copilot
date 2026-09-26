@@ -49,7 +49,7 @@ endpoint answers `503`.
 
 Store `photoHash` with the delivery and send it back in `knownHashes` next time.
 
-Model calls count against `NEBIUS_MAX_CALLS_PER_DAY` (3 or 4 per call). Allow up to 60 seconds per request.
+Model calls count against `NEBIUS_MAX_CALLS_PER_DAY` (3 or 4 per call). Allow up to 3 minutes per request: the vision model is the slow step.
 
 ## Open data
 

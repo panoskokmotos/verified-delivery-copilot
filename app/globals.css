@@ -249,3 +249,13 @@ img { max-width: 100%; }
 .grid > *, .photo-pair > *, .delivery .body, .card { min-width: 0; }
 h1, h2, .title { overflow-wrap: anywhere; }
 .list > *, .state .grow, .products { min-width: 0; max-width: 100%; }
+/* judge guide on the home page */
+.guide { margin-top: 22px; }
+.how-to { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.how-to li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+.how-to .num { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 800; }
+.how-to a, .guide-try a { color: var(--primary); font-weight: 600; }
+.guide-try { margin-top: 16px; padding: 12px 14px; border-radius: var(--r); background: var(--soft-secondary); }
+.guide-try ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+.guide-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+@media (max-width: 600px) { .guide-cta .btn { flex: 1 1 100%; } }

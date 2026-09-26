@@ -23,6 +23,7 @@ const MAX_PER_MONTH = Number(process.env.MAX_VERIFICATIONS_PER_MONTH || 300);
 // The Hobby plan blocks the store for 30 days past 2,000 writes. Stop well before, leaving room for the dashboard.
 const MAX_WRITES = Number(process.env.MAX_WRITES_PER_MONTH || 1500);
 const STATE = "state.json";
+const DEMO_RESET_HOURS = Number(process.env.DEMO_RESET_HOURS ?? 3);
 const LOCAL = process.env.VDC_STORE_DIR || path.join(os.tmpdir(), "vdc-store");
 const useBlob = () => Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
@@ -62,8 +63,15 @@ async function writeState(state: State, etag?: string) {
 export async function listDeliveries(): Promise<Delivery[]> {
   const { state } = await readState();
   const byId = new Map(SEED.map((d) => [d.id, d]));
-  // Skip records saved before deliveries were batched (no donations list): the pages can't render them.
-  for (const d of Object.values(state.deliveries)) if (Array.isArray(d.donations)) byId.set(d.id, d);
+  const resetBefore = Date.now() - DEMO_RESET_HOURS * 3_600_000;
+  for (const d of Object.values(state.deliveries)) {
+    // Skip records saved before deliveries were batched (no donations list): the pages can't render them.
+    if (!Array.isArray(d.donations)) continue;
+    // The demo deliveries go back to "awaiting photo" a few hours after someone checks them, so the next
+    // visitor can run the whole flow too. Costs no writes: the old record is just ignored.
+    if (byId.has(d.id) && DEMO_RESET_HOURS > 0 && Date.parse(d.updatedAt ?? "") < resetBefore) continue;
+    byId.set(d.id, d);
+  }
   return [...byId.values()].sort((a, b) => a.arrivesAt.localeCompare(b.arrivesAt));
 }
 

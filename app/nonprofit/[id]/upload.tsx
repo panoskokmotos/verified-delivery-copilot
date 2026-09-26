@@ -52,6 +52,7 @@ export function Upload({ delivery }: { delivery: Delivery }) {
                 {checking ? "Checking every item…" : result ? "Check this photo" : "Check photo"}
               </button>
             )}
+            {checking && <p className="sub">This takes 15 to 40 seconds. Follow each step under &quot;Your check&quot;.</p>}
             {error && <p className="err">{error}</p>}
           </>
         )}

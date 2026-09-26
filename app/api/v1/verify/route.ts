@@ -5,7 +5,7 @@ import { runVerification } from "../../../../lib/pipeline";
 import type { NeedItem } from "../../../../lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 // Server-to-server API for platforms (for example Givelink) to check a delivery photo.
 // Stateless: nothing is stored here. The caller keeps its own photo fingerprints and sends them

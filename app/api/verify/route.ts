@@ -9,7 +9,7 @@ import type { StepEvent, VerificationResult } from "../../../lib/types";
 
 export const runtime = "nodejs";
 // The vision model sometimes takes 30 to 45s under load, so leave headroom.
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
