@@ -9,3 +9,4 @@ node_modules
 eval/real/
 eval/report.md
 .DS_Store
+.next-check

@@ -8,6 +8,8 @@ Required for the Devpost submission. Log each item when it happens. Format: date
 
 - 2026-09-26, vision latency: `google/gemma-3-27b-it` took 59s, 16s and 2.7s on the same small image within a few minutes. `openbmb/MiniCPM-V-4_5` took 0.8s. The 59s call nearly hit our 60s route limit. Fix: publish latency or queue status per model.
 
+- 2026-09-26, object grounding: we wanted to draw a box around each donated item in the delivery photo. Neither vision model on Token Factory could do it. Asked for boxes around 3 products, `google/gemma-3-27b-it` (87s) and `openbmb/MiniCPM-V-4_5` (4s) both returned boxes on the wall and an empty carton, not on the products. Fix: host a grounding-capable vision model (Nemotron Nano Omni, or a Qwen-VL class model) on Token Factory.
+
 ## Nebius AI Cloud
 
 ## NVIDIA Nemotron 3 Nano Omni (vision)

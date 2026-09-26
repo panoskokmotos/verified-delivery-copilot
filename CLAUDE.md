@@ -21,7 +21,7 @@ Pipeline in `lib/pipeline.ts`: intake, vision, integrity, org check, decision, i
 
 ## Commands
 - `npm run dev` : local app on :3000
-- `npm run build` : must pass before every commit
+- `npm run build` : must pass before every commit. While `npm run dev` runs, check with `NEXT_DIST_DIR=.next-check npm run build` so the dev server keeps its files
 - `npm run models` : list Nemotron model IDs on the account
 - `npm run eval` : score the pipeline on `eval/real` and `eval/fake`, writes `eval/report.md`
 
