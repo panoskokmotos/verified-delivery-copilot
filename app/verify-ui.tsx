@@ -174,6 +174,12 @@ export function Verdict({ result }: { result: VerificationResult }) {
   const doubtful = result.decision.verdict === "review" && (result.vision.aiSuspicion !== "none" || flags.length > 0 || Boolean(result.integrity.aiLabel));
   return (
     <>
+      {result.mode !== "live" && (
+        <div className="notice danger">
+          <div className="title">Simulated result: the AI isn't connected</div>
+          <div>This check didn't look at your photo, so it can't be sent to donors.</div>
+        </div>
+      )}
       <ItemChecks checks={result.vision.itemChecks} />
       <div className={`verdict ${result.decision.verdict}`}>
         <div className="big">

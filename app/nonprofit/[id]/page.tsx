@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDelivery } from "../../../lib/store";
 import { DeliveryBar } from "../../delivery-card";
+import { fmtDate } from "../../labels";
 import { Upload } from "./upload";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,12 @@ export default async function NonprofitDelivery({ params }: { params: Promise<{ 
           </p>
         </div>
       </div>
+      {delivery.status === "shipping" && (
+        <div className="notice">
+          <div className="title">This delivery hasn&apos;t arrived yet</div>
+          <div>It&apos;s due on {fmtDate(delivery.arrivesAt)}. Take the photo once the items are with you: a photo from before then can&apos;t be sent to donors.</div>
+        </div>
+      )}
       <Upload delivery={delivery} />
     </main>
   );

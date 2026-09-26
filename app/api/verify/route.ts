@@ -1,3 +1,4 @@
+import { notConfigured } from "../../../lib/config";
 import { normalizePhoto } from "../../../lib/photo";
 import { runVerification, type VerifyInput } from "../../../lib/pipeline";
 import { parseLatLon } from "../../../lib/geo";
@@ -18,11 +19,24 @@ const MAX_BYTES = 8 * 1024 * 1024;
  * and a doubtful photo must not reach donors as partial proof.
  */
 function sendable(r: VerificationResult): boolean {
+  if (r.mode !== "live") return false; // a simulated check proves nothing
   if (r.decision.verdict === "approve") return true;
   return r.decision.verdict === "review" && r.vision.aiSuspicion === "none" && r.integrity.flags.length === 0 && !r.integrity.aiLabel;
 }
 
+/** A warning when the photo was taken more than a day before the delivery was due, else null. */
+function beforeArrival(arrivesAt: string, takenAt: string | null | undefined): string | null {
+  if (!takenAt) return null;
+  const taken = new Date(takenAt);
+  const due = new Date(`${arrivesAt}T00:00:00Z`);
+  if (Number.isNaN(taken.getTime()) || taken.getTime() >= due.getTime() - 86_400_000) return null;
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  return `The photo was taken on ${day(taken)}, before this delivery was due (${arrivesAt}), so it can't show these items.`;
+}
+
 export async function POST(req: Request) {
+  const unset = notConfigured();
+  if (unset) return unset;
   const form = await req.formData();
   const photo = form.get("photo");
   if (!(photo instanceof File)) return Response.json({ error: "Missing photo" }, { status: 400 });
@@ -82,6 +96,15 @@ export async function POST(req: Request) {
         const result = await runVerification(input, emit);
         // How the photo was taken. Part of the signed result, so it can't change between check and send.
         result.capture = { inApp: form.get("capture") === "camera", location: input.uploadAt ?? null };
+        if (delivery) {
+          const early = beforeArrival(delivery.arrivesAt, result.capture.inApp ? new Date().toISOString() : result.integrity.photoTakenAt);
+          if (early) {
+            // A photo from before the goods arrived can't show them. Never "complete", and never sendable.
+            result.integrity.flags.push(early);
+            result.decision.reasons.unshift(early);
+            if (result.decision.verdict === "approve") result.decision.verdict = "review";
+          }
+        }
         let confirmToken: string | undefined;
         if (delivery) {
           // A check is a preview: the nonprofit sees it and confirms before anything is saved.

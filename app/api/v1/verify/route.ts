@@ -23,6 +23,8 @@ function authorized(req: Request): boolean {
 export async function POST(req: Request) {
   if (!process.env.VDC_API_KEYS) return Response.json({ error: "API is not enabled on this server" }, { status: 503 });
   if (!authorized(req)) return Response.json({ error: "Invalid API key" }, { status: 401 });
+  // Stateless, so only the model key matters here. Never answer a platform with a simulated verdict.
+  if (!process.env.NEBIUS_API_KEY) return Response.json({ error: "The AI models aren't connected on this server (NEBIUS_API_KEY)." }, { status: 503 });
 
   const form = await req.formData();
   const photo = form.get("photo");

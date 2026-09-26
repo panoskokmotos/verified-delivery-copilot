@@ -211,3 +211,41 @@ textarea.note-input { min-height: 110px; margin-top: 6px; }
 .product .img img { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
 .yours .thumb { width: 44px; height: 44px; border-radius: 10px; background: var(--soft-primary); display: grid; place-items: center; font-size: 22px; overflow: hidden; }
 .yours .thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+/* phones */
+html { -webkit-text-size-adjust: 100%; }
+img { max-width: 100%; }
+.alt, .ask, .shot-info, .donors { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  main { padding: 18px 16px 48px; }
+  header h1 { font-size: 23px; }
+  .grid { gap: 14px; margin-top: 16px; }
+  .card { padding: 16px; }
+  .row { grid-template-columns: 1fr; }
+  /* 16px stops iOS zooming into a field on focus */
+  input[type="text"], textarea, select { font-size: 16px; }
+  .btn { padding: 0 18px; }
+  .ask .btn, .alt .btn { flex: 1 1 100%; }
+  .bar { flex-wrap: wrap; padding: 10px 14px; }
+  .delivery .body { padding: 14px; }
+  .delivery .foot { flex-wrap: wrap; gap: 4px 12px; padding: 10px 14px; }
+  .product { flex-basis: 116px; }
+  .items li { grid-template-columns: 30px 1fr auto; padding: 10px; }
+  .yours li { grid-template-columns: 26px 40px 1fr 28px; gap: 8px; padding: 10px; }
+  .yours .thumb { width: 40px; height: 40px; }
+  .kv { grid-template-columns: 1fr; gap: 0; }
+  .kv dd { margin-bottom: 8px; }
+  .table { display: block; overflow-x: auto; }
+  .viewfinder { max-height: 60vh; }
+  .verdict { padding: 14px; }
+  .verdict .big { font-size: 18px; }
+  .state { flex-wrap: wrap; }
+  .receipt-head .btn, .state .btn { width: 100%; }
+  .tile .big-num { font-size: 24px; }
+}
+.notice.danger { background: var(--soft-danger); color: var(--danger); }
+.notice.danger .title { color: var(--danger); }
+/* grid and flex children default to their content's width; a scrolling products row must not widen the page */
+.grid > *, .photo-pair > *, .delivery .body, .card { min-width: 0; }
+h1, h2, .title { overflow-wrap: anywhere; }
+.list > *, .state .grow, .products { min-width: 0; max-width: 100%; }

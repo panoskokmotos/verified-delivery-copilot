@@ -1,3 +1,4 @@
+import { notConfigured } from "../../../lib/config";
 import { normalizePhoto } from "../../../lib/photo";
 import { sha256, verifyCheck } from "../../../lib/sign";
 import { getDelivery, preflight, saveVerification } from "../../../lib/store";
@@ -9,6 +10,8 @@ export const runtime = "nodejs";
 // result, signed by /api/verify. Delivery status "approve" means the proof was shared; the result's
 // own verdict still says whether every item showed.
 export async function POST(req: Request) {
+  const unset = notConfigured();
+  if (unset) return unset;
   const form = await req.formData();
   const photo = form.get("photo");
   const deliveryId = String(form.get("deliveryId") || "");
