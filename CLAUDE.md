@@ -16,7 +16,8 @@ Pipeline in `lib/pipeline.ts`: intake, vision, integrity, org check, decision, i
 ## Product rules
 - The LLM reviewer can only make a verdict stricter, never looser. Keep this in `decide()`.
 - No donor message before approval.
-- A reused photo is always rejected.
+- A reused photo is always rejected. So is a photo labeled AI-generated (C2PA / IPTC).
+- Missing or old camera data is not a penalty. Nonprofits upload from shared folders and WhatsApp.
 
 ## Commands
 - `npm run dev` : local app on :3000

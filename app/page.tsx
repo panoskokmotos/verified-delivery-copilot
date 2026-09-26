@@ -6,7 +6,7 @@ import type { StepEvent, StepName, VerificationResult, VisionCheck, IntegrityChe
 const STEPS: { key: StepName; title: string; what: string }[] = [
   { key: "intake", title: "Read the request", what: "Nemotron turns the nonprofit's ask into a checklist" },
   { key: "vision", title: "Look at the photo", what: "Nemotron vision checks item, count, condition, setting" },
-  { key: "integrity", title: "Check the photo is genuine", what: "Timestamp, metadata, reused-photo fingerprint" },
+  { key: "integrity", title: "Check the photo is genuine", what: "AI content label, reused-photo fingerprint, timestamp" },
   { key: "org", title: "Confirm the nonprofit", what: "Tavily web search for the organization" },
   { key: "decision", title: "Decide", what: "Rule score plus Nemotron review, can only get stricter" },
   { key: "impact", title: "Close the loop", what: "Donor thank-you, only after approval" },

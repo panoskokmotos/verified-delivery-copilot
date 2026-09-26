@@ -8,6 +8,20 @@ export const models = {
 
 export const isLive = () => Boolean(process.env.NEBIUS_API_KEY);
 
+// Hard stop on model calls per UTC day, so a bug, a loop or a busy demo can't burn the credits.
+// A verification makes 3 or 4 calls. Counted per server process.
+const MAX_CALLS_PER_DAY = Number(process.env.NEBIUS_MAX_CALLS_PER_DAY || 300);
+const budget = { day: "", calls: 0 };
+
+function spendCall() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (budget.day !== today) Object.assign(budget, { day: today, calls: 0 });
+  if (budget.calls >= MAX_CALLS_PER_DAY) {
+    throw new Error(`Daily model call limit reached (${MAX_CALLS_PER_DAY}). Try again tomorrow or raise NEBIUS_MAX_CALLS_PER_DAY.`);
+  }
+  budget.calls++;
+}
+
 let client: OpenAI | null = null;
 function nebius() {
   if (!client) {
@@ -38,6 +52,7 @@ export async function askJson<T>(opts: {
   user: Content;
   maxTokens?: number;
 }): Promise<T> {
+  spendCall();
   const res = await nebius().chat.completions.create({
     model: opts.model,
     temperature: 0.1,
@@ -52,6 +67,7 @@ export async function askJson<T>(opts: {
     return extractJson<T>(text);
   } catch {
     // One repair pass: ask the model to fix its own output.
+    spendCall();
     const fix = await nebius().chat.completions.create({
       model: models.writer,
       temperature: 0,

@@ -22,6 +22,8 @@ export type VisionCheck = {
 export type IntegrityCheck = {
   photoTakenAt: string | null;
   hasExif: boolean;
+  /** "generated" or "edited" when the file carries an AI content label (C2PA / IPTC). */
+  aiLabel: "generated" | "edited" | null;
   gps: { lat: number; lon: number } | null;
   hash: string;
   duplicateOf: string | null;

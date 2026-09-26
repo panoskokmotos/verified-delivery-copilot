@@ -36,6 +36,18 @@ export async function dHash(buf: Buffer): Promise<string> {
   return BigInt("0b" + bits).toString(16).padStart(16, "0");
 }
 
+/**
+ * Reads the AI content label that Google, OpenAI, Adobe and others embed in generated images
+ * (IPTC DigitalSourceType, inside XMP or a C2PA manifest). A screenshot strips it, so a
+ * missing label proves nothing; a present one is decisive.
+ */
+function readAiLabel(buf: Buffer): IntegrityCheck["aiLabel"] {
+  const s = buf.toString("latin1");
+  if (/compositeWithTrainedAlgorithmicMedia/i.test(s)) return "edited";
+  if (/trainedAlgorithmicMedia/i.test(s)) return "generated";
+  return null;
+}
+
 function hamming(a: string, b: string) {
   let x = BigInt("0x" + a) ^ BigInt("0x" + b);
   let n = 0;
@@ -64,15 +76,16 @@ export async function checkIntegrity(buf: Buffer, id: string, need: Need, persis
     /* no EXIF */
   }
 
-  if (!hasExif) flags.push("No camera metadata. Could be a screenshot or a re-saved image.");
-  if (photoTakenAt) {
-    const ageDays = (Date.now() - new Date(photoTakenAt).getTime()) / 86_400_000;
-    if (ageDays > 14) flags.push(`Photo was taken ${Math.round(ageDays)} days ago, before this delivery window.`);
-    if (ageDays < -1) flags.push("Photo timestamp is in the future. Camera clock or edited metadata.");
-    if (need.deadline && new Date(photoTakenAt) > new Date(need.deadline + "T23:59:59Z")) {
-      flags.push("Photo was taken after the nonprofit's deadline.");
-    }
+  // Missing or old camera data is normal: nonprofits upload from a shared folder or WhatsApp,
+  // which strips metadata, and the photo is often taken earlier by someone else. Only a
+  // timestamp in the future counts, since that means the metadata was edited.
+  if (photoTakenAt && new Date(photoTakenAt).getTime() > Date.now() + 86_400_000) {
+    flags.push("Photo timestamp is in the future. The metadata was likely edited.");
   }
+
+  const aiLabel = readAiLabel(buf);
+  if (aiLabel === "generated") flags.push("The file is labeled as AI-generated (C2PA / IPTC content label).");
+  if (aiLabel === "edited") flags.push("The file is labeled as edited with AI (C2PA / IPTC content label).");
 
   const hash = await dHash(buf);
   const seen = await loadSeen();
@@ -89,5 +102,5 @@ export async function checkIntegrity(buf: Buffer, id: string, need: Need, persis
     await saveSeen(seen);
   }
 
-  return { photoTakenAt, hasExif, gps, hash, duplicateOf, nearDuplicateDistance: best, flags };
+  return { photoTakenAt, hasExif, aiLabel, gps, hash, duplicateOf, nearDuplicateDistance: best, flags };
 }

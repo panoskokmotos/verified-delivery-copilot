@@ -1,7 +1,7 @@
 import { askJson, isLive, models } from "./nebius";
 import { checkIntegrity } from "./integrity";
 import { checkOrg } from "./tavily";
-import type { Decision, ImpactNote, Need, StepEvent, StepName, VerificationResult, VisionCheck } from "./types";
+import type { Decision, ImpactNote, IntegrityCheck, Need, StepEvent, StepName, VerificationResult, VisionCheck } from "./types";
 
 export type VerifyInput = {
   requestText: string; // the nonprofit's original ask, free text
@@ -71,16 +71,26 @@ function ruleScore(need: Need, v: VisionCheck, flags: string[], duplicate: boole
   return Math.max(0, Math.min(100, s));
 }
 
-async function decide(need: Need, v: VisionCheck, flags: string[], duplicate: boolean, orgFound: boolean | null): Promise<Decision> {
+async function decide(
+  need: Need,
+  v: VisionCheck,
+  flags: string[],
+  duplicate: boolean,
+  orgFound: boolean | null,
+  aiLabel: IntegrityCheck["aiLabel"],
+): Promise<Decision> {
   const score = ruleScore(need, v, flags, duplicate, orgFound);
-  const base: Decision["verdict"] = duplicate ? "reject" : score >= 75 ? "approve" : score >= 45 ? "review" : "reject";
+  // A reused or AI-generated photo is always rejected. An AI-edited one never auto-approves.
+  const byScore: Decision["verdict"] = score >= 75 ? "approve" : score >= 45 ? "review" : "reject";
+  const base: Decision["verdict"] =
+    duplicate || aiLabel === "generated" ? "reject" : aiLabel === "edited" && byScore === "approve" ? "review" : byScore;
   if (!isLive()) return demoDecision(base, score, v, flags);
   const d = await askJson<Omit<Decision, "score">>({
     model: models.reasoning,
     system:
       "You are the final reviewer for a donation delivery. A rule engine proposed a verdict. You may keep it or make it stricter (approve->review, review->reject), never looser. " +
       "Return verdict ('approve'|'review'|'reject'), reasons (2-4 short plain sentences a nonprofit ops person understands), nextAction (one concrete instruction, e.g. 'Ask the shelter for a second photo showing the size labels').",
-    user: JSON.stringify({ need, vision: v, integrityFlags: flags, duplicate, orgFound, ruleScore: score, proposedVerdict: base }),
+    user: JSON.stringify({ need, vision: v, integrityFlags: flags, duplicate, aiLabel, orgFound, ruleScore: score, proposedVerdict: base }),
   });
   const order = { approve: 0, review: 1, reject: 2 } as const;
   const verdict = order[d.verdict] >= order[base] ? d.verdict : base;
@@ -114,7 +124,7 @@ export async function runVerification(input: VerifyInput, emit: Emit): Promise<V
   ]);
 
   const decision = await step(emit, "decision", isLive() ? models.reasoning : undefined, () =>
-    decide(need, v, integrity.flags, Boolean(integrity.duplicateOf), org.ran ? org.found : null),
+    decide(need, v, integrity.flags, Boolean(integrity.duplicateOf), org.ran ? org.found : null, integrity.aiLabel),
   );
   const note = await step(emit, "impact", isLive() ? models.writer : undefined, () => impact(input, need, v, decision));
 
