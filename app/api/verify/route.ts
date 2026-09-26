@@ -1,11 +1,12 @@
 import { notConfigured } from "../../../lib/config";
+import { isLive } from "../../../lib/nebius";
 import { normalizePhoto } from "../../../lib/photo";
 import { runVerification, type VerifyInput } from "../../../lib/pipeline";
 import { parseLatLon } from "../../../lib/geo";
 import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
 import { sendable } from "../../../lib/verified";
-import { getDelivery, preflight, saveVerification } from "../../../lib/store";
+import { getDelivery, preflight, recordCalls, saveVerification } from "../../../lib/store";
 import type { StepEvent, VerificationResult } from "../../../lib/types";
 
 export const runtime = "nodejs";
@@ -41,7 +42,10 @@ export async function POST(req: Request) {
   if (deliveryId && !delivery) return Response.json({ error: "Unknown delivery" }, { status: 404 });
   if (delivery?.status === "approve") return Response.json({ error: "This delivery is already confirmed" }, { status: 409 });
 
-  const { seen, budgetLeft } = await preflight();
+  const { seen, budgetLeft, callsLeftToday } = await preflight();
+  if (isLive() && callsLeftToday < 4) {
+    return Response.json({ error: "Today's model call limit is reached. It resets at midnight UTC." }, { status: 429 });
+  }
   if (delivery && budgetLeft <= 0) {
     return Response.json({ error: "This month's verification limit is reached. It resets on the 1st." }, { status: 429 });
   }
@@ -84,6 +88,7 @@ export async function POST(req: Request) {
       const emit = (e: StepEvent) => controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
       try {
         const result = await runVerification(input, emit);
+        await recordCalls(result.usage?.length ?? 0).catch(() => {}); // counting must never fail a check
         // How the photo was taken. Part of the signed result, so it can't change between check and send.
         result.capture = { inApp: form.get("capture") === "camera", location: input.uploadAt ?? null };
         if (delivery) {

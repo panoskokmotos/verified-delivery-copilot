@@ -14,8 +14,9 @@ export const models = {
 export const isLive = () => Boolean(process.env.NEBIUS_API_KEY);
 
 // Hard stop on model calls per UTC day, so a bug, a loop or a busy demo can't burn the credits.
-// A verification makes 3 or 4 calls. Counted per server process.
-const MAX_CALLS_PER_DAY = Number(process.env.NEBIUS_MAX_CALLS_PER_DAY || 300);
+// A verification makes 3 or 4 calls. The shared count lives in storage (lib/store.ts, checked before
+// each check); this per-process count is the backstop inside a single check.
+export const MAX_CALLS_PER_DAY = Number(process.env.NEBIUS_MAX_CALLS_PER_DAY || 300);
 const budget = { day: "", calls: 0 };
 
 function spendCall() {

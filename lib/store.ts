@@ -4,6 +4,7 @@ import os from "os";
 import path from "path";
 import { SEED } from "./demo";
 import type { Seen } from "./integrity";
+import { MAX_CALLS_PER_DAY } from "./nebius";
 import type { Delivery } from "./types";
 
 // Storage: Vercel Blob (private store) in production, a local folder in dev.
@@ -16,6 +17,8 @@ type State = {
   verifications: number; // saved verifications this month
   writes?: number; // every storage write this month: photos, state, questions, answers
   hashes: Seen[];
+  day?: string; // YYYY-MM-DD (UTC) the call count below belongs to
+  calls?: number; // model calls today, across every server copy
   deliveries: Record<string, Delivery>;
 };
 
@@ -79,13 +82,34 @@ export async function getDelivery(id: string): Promise<Delivery | null> {
   return (await listDeliveries()).find((d) => d.id === id) ?? null;
 }
 
-/** Fingerprints for the reused-photo check, and whether this month's budget has room. */
-export async function preflight(): Promise<{ seen: Seen[]; budgetLeft: number }> {
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** Fingerprints for the reused-photo check, and whether this month's and today's budgets have room. */
+export async function preflight(): Promise<{ seen: Seen[]; budgetLeft: number; callsLeftToday: number }> {
   const { state } = await readState();
   const fresh = state.month !== thisMonth();
   const checksLeft = MAX_PER_MONTH - (fresh ? 0 : state.verifications);
   const writesLeft = Math.floor((MAX_WRITES - (fresh ? 0 : state.writes ?? state.verifications * 2)) / 2); // a verification is 2 writes
-  return { seen: state.hashes, budgetLeft: Math.min(checksLeft, writesLeft) };
+  const callsLeftToday = MAX_CALLS_PER_DAY - (state.day === today() ? state.calls ?? 0 : 0);
+  return { seen: state.hashes, budgetLeft: Math.min(checksLeft, writesLeft), callsLeftToday };
+}
+
+/** Adds a finished check's model calls to today's shared count (one write). */
+export async function recordCalls(n: number) {
+  if (n <= 0) return;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { state, etag } = await readState();
+    if (state.month !== thisMonth()) Object.assign(state, { month: thisMonth(), verifications: 0, writes: 0 });
+    if ((state.writes ?? 0) >= MAX_WRITES) return; // storage budget spent: the per-process cap still holds
+    if (state.day !== today()) Object.assign(state, { day: today(), calls: 0 });
+    state.calls = (state.calls ?? 0) + n;
+    state.writes = (state.writes ?? 0) + 1;
+    try {
+      return await writeState(state, etag);
+    } catch (err) {
+      if (!(err instanceof BlobPreconditionFailedError)) throw err;
+    }
+  }
 }
 
 /** Changes one delivery in the state file (one write). Throws when this month's write budget is spent. */
