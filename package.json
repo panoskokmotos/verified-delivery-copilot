@@ -8,8 +8,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "models": "node scripts/list-models.mjs",
-    "eval": "node scripts/eval.mjs"
+    "models": "node --env-file-if-exists=.env.local scripts/list-models.mjs",
+    "eval": "node --env-file-if-exists=.env.local scripts/eval.mjs"
   },
   "dependencies": {
     "exifr": "^7.1.3",

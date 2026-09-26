@@ -3,7 +3,7 @@ import OpenAI from "openai";
 export const models = {
   vision: process.env.NEMOTRON_VISION_MODEL || "nvidia/Nemotron-3-Nano-Omni",
   reasoning: process.env.NEMOTRON_REASONING_MODEL || "nvidia/nemotron-3-super-120b-a12b",
-  writer: process.env.NEMOTRON_WRITER_MODEL || "nvidia/Nemotron-3-Nano-30B-A3B",
+  writer: process.env.NEMOTRON_WRITER_MODEL || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
 };
 
 export const isLive = () => Boolean(process.env.NEBIUS_API_KEY);
