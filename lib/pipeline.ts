@@ -20,7 +20,7 @@ export type VerifyInput = {
   items?: NeedItem[]; // what the donor gave; when absent, read from requestText
   orgName: string;
   city: string;
-  donorName: string;
+  donorNames: string[]; // everyone whose gift is in this delivery
   photo: Buffer; // normalized JPEG: what the model sees and what gets stored
   original: Buffer; // bytes as uploaded (or their metadata header): camera data and AI labels live here
   seen: Seen[]; // fingerprints of earlier delivery photos
@@ -72,7 +72,7 @@ async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
     system:
       "You audit delivery photos for a donation marketplace. Be skeptical and literal. Only report what is visible. " +
       "Return: itemsSeen (list), itemChecks (one entry per expected item, same order: {name, expected, seen (int or null if uncountable), " +
-      "status ('seen' all or nearly all visible | 'partial' some visible | 'missing' not visible | 'unclear' can't tell), note (one short sentence)}), " +
+      "status ('seen' all or nearly all visible | 'partial' some visible | 'missing' not visible | 'unclear' can't tell), note (one short sentence), where (where it sits in the photo in a few words a person can follow, e.g. 'front left, blue bags' or 'not visible')}), " +
       "aiSuspicion ('none'|'some'|'strong': visual signs the image is AI-generated, e.g. garbled label text, melted shapes, impossible lighting, repeated textures), " +
       "condition ('new'|'used'|'damaged'|'unclear'), deliveryContext (one sentence: where this seems to be, e.g. shelter storage room, doorstep, stock photo), " +
       "concerns (list: stock imagery, screenshots, watermarks, wrong item, partial delivery, AI artifacts), confidence (0..1 that this photo proves the gift was delivered).",
@@ -95,6 +95,7 @@ async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
       seen: typeof c?.seen === "number" ? c.seen : null,
       status: c?.status ?? "unclear",
       note: c?.note ?? "The model did not report on this item.",
+      where: c?.where ?? "",
     };
   });
   return { ...v, itemChecks, aiSuspicion: v.aiSuspicion ?? "none", concerns: v.concerns ?? [], itemsSeen: v.itemsSeen ?? [] };
@@ -152,18 +153,21 @@ async function decide(
   return { verdict, score, reasons: d.reasons, nextAction: d.nextAction };
 }
 
-// ---------- Step 6: close the loop with the donor ----------
+// ---------- Step 6: draft the nonprofit's thank-you note ----------
+// As on Givelink, the nonprofit sends the donors a thank-you note with the proof. The model drafts it,
+// the nonprofit edits it before sending. Nothing is drafted until the photo checks out.
 async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: Decision): Promise<ImpactNote> {
   if (decision.verdict !== "approve") {
-    return { donorMessage: "Held until the delivery is confirmed. The donor gets no message yet.", publicCaption: "" };
+    return { donorMessage: "", publicCaption: "" };
   }
   if (!isLive()) return demoImpact(input, need);
   return askJson<ImpactNote>({
     model: models.writer,
     system:
-      "Write a short thank-you for a donor whose in-kind gift was just confirmed delivered. Specific, warm, no clichés, no exclamation marks, no em dashes. " +
-      "Mention the exact items and counts and the organization. donorMessage: 2-3 sentences. publicCaption: one sentence for a public impact feed, no donor name.",
-    user: JSON.stringify({ donor: input.donorName, org: input.orgName, city: input.city, items: need.items, checks: v.itemChecks, context: v.deliveryContext }),
+      "Draft the thank-you note a nonprofit sends to the donors of a delivery that just arrived, in the nonprofit's voice (we). " +
+      "Specific and warm: name the items and what they unlock for the people or animals served. No clichés, no exclamation marks, no em dashes. " +
+      "donorMessage: 2-3 sentences addressed to all donors of this delivery. publicCaption: one sentence for a public impact feed, no donor names.",
+    user: JSON.stringify({ org: input.orgName, city: input.city, donors: input.donorNames, items: need.items, context: v.deliveryContext }),
   });
 }
 
@@ -183,7 +187,7 @@ export async function runVerification(input: VerifyInput, emit: Emit): Promise<V
   );
   const note = await step(emit, "impact", isLive() ? models.writer : undefined, () => impact(input, need, v, decision));
 
-  return { id, mode: isLive() ? "live" : "demo", need, vision: v, integrity, org, decision, impact: note };
+  return { id, mode: isLive() ? "live" : "demo", models: isLive() ? { ...models } : undefined, need, vision: v, integrity, org, decision, impact: note };
 }
 
 // ---------- Demo mode (no API key): deterministic stand-ins so the UI works offline ----------
@@ -197,7 +201,7 @@ function demoNeed(input: VerifyInput): Need {
 function demoVision(need: Need): VisionCheck {
   return {
     itemsSeen: need.items.map((i) => i.name),
-    itemChecks: need.items.map((i) => ({ name: i.name, expected: i.quantity, seen: i.quantity, status: "seen", note: "Demo mode: simulated." })),
+    itemChecks: need.items.map((i, n) => ({ name: i.name, expected: i.quantity, seen: i.quantity, status: "seen", note: "Demo mode: simulated.", where: ["front left", "center", "front right", "back row"][n % 4] })),
     aiSuspicion: "none",
     condition: need.condition === "new" ? "new" : "used",
     deliveryContext: "Demo mode: vision is simulated. Add NEBIUS_API_KEY to run the model on the real photo.",
@@ -217,7 +221,7 @@ function demoDecision(verdict: Decision["verdict"], score: number, v: VisionChec
 function demoImpact(input: VerifyInput, need: Need): ImpactNote {
   const list = need.items.map(itemLine).join(", ");
   return {
-    donorMessage: `${input.donorName || "Hi"}, your gift (${list}) arrived at ${input.orgName || "the nonprofit"} and the team confirmed it with a photo. Thank you for filling a real, specific need.`,
+    donorMessage: `Thank you. Your gift (${list}) arrived at ${input.orgName || "our place"} and is already in use.`,
     publicCaption: `${list} delivered to ${input.orgName || "a verified nonprofit"} in ${input.city || "their city"}, photo-confirmed.`,
   };
 }

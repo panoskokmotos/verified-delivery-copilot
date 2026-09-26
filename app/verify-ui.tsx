@@ -110,7 +110,7 @@ export function useVerify() {
   }
 
   /** Saves an approved check so the donor sees it. Only possible when the check returned a token. */
-  async function confirm(deliveryId: string) {
+  async function confirm(deliveryId: string, note = "") {
     if (!result || !sent?.token) return;
     setBusy(true);
     setError(null);
@@ -119,6 +119,7 @@ export function useVerify() {
       body.append("deliveryId", deliveryId);
       body.append("result", JSON.stringify(result));
       body.append("confirmToken", sent.token);
+      body.append("note", note);
       body.append("photo", sent.photo, sent.name);
       const res = await fetch("/api/confirm", { method: "POST", body });
       const j = await res.json().catch(() => ({}));
@@ -167,6 +168,7 @@ export function ItemChecks({ checks }: { checks: ItemCheck[] }) {
           <div>
             <div className="title">{c.name}</div>
             <div className="sub">{c.note}</div>
+            {c.where && <div className="where">📍 {c.where}</div>}
           </div>
           <span className="count">{c.seen ?? "?"}/{c.expected}</span>
         </li>
@@ -177,7 +179,7 @@ export function ItemChecks({ checks }: { checks: ItemCheck[] }) {
 
 const HEADLINE = { approve: "Every item checks out", review: "Almost there: retake the photo", reject: "This photo can't be accepted" };
 
-export function Verdict({ result, donorName }: { result: VerificationResult; donorName?: string }) {
+export function Verdict({ result }: { result: VerificationResult }) {
   const flags = result.integrity.flags.filter((f) => !result.decision.reasons.includes(f));
   const approved = result.decision.verdict === "approve";
   return (
@@ -191,11 +193,6 @@ export function Verdict({ result, donorName }: { result: VerificationResult; don
         {!approved && <div className="next">Next: {result.decision.nextAction}</div>}
       </div>
       {flags.length > 0 && <ul className="flags">{flags.map((f, i) => <li key={i}>{f}</li>)}</ul>}
-      {approved && (
-        <div className="note">
-          <strong>{donorName || "The donor"} will read:</strong> {result.impact.donorMessage}
-        </div>
-      )}
     </>
   );
 }

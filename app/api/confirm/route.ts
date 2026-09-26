@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { verifyCheck } from "../../../lib/sign";
+import { sha256, verifyCheck } from "../../../lib/sign";
 import { getDelivery, preflight, saveVerification } from "../../../lib/store";
 import type { VerificationResult } from "../../../lib/types";
 
@@ -12,6 +12,8 @@ export async function POST(req: Request) {
   const deliveryId = String(form.get("deliveryId") || "");
   const resultJson = String(form.get("result") || "");
   const token = String(form.get("confirmToken") || "");
+  // The nonprofit's own thank-you note, sent with the proof. Not part of the signed check.
+  const note = String(form.get("note") || "").trim().slice(0, 1500);
   if (!(photo instanceof File) || !deliveryId || !resultJson || !token) return Response.json({ error: "Missing fields" }, { status: 400 });
 
   const raw = Buffer.from(await photo.arrayBuffer());
@@ -25,6 +27,9 @@ export async function POST(req: Request) {
 
   const result = JSON.parse(resultJson) as VerificationResult;
   const normalized = await sharp(raw).rotate().resize(1600, 1600, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
-  await saveVerification({ ...delivery, status: "approve", updatedAt: new Date().toISOString(), result }, normalized);
+  await saveVerification(
+    { ...delivery, status: "approve", updatedAt: new Date().toISOString(), result, thankYouNote: note, photoSha256: sha256(normalized) },
+    normalized,
+  );
   return Response.json({ ok: true });
 }

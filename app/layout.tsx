@@ -12,8 +12,9 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${body.variable} ${heading.variable}`}>
-      <body>{children}</body>
+    // Extensions like Grammarly add attributes to <html> and <body> before React loads; don't flag those.
+    <html lang="en" className={`${body.variable} ${heading.variable}`} suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

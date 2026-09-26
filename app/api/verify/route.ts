@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { runVerification, type VerifyInput } from "../../../lib/pipeline";
+import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
 import { getDelivery, preflight, saveVerification } from "../../../lib/store";
 import type { StepEvent } from "../../../lib/types";
@@ -35,12 +36,13 @@ export async function POST(req: Request) {
 
   const input: VerifyInput = delivery
     ? {
+        // One photo proves the whole batch: every product from every donor in this delivery.
         id: delivery.id,
-        requestText: delivery.requestText,
-        items: delivery.items,
+        requestText: `Wishlist delivery to ${delivery.orgName}, ${delivery.cause}. Shipped by ${delivery.supplier}.`,
+        items: allItems(delivery),
         orgName: delivery.orgName,
         city: delivery.city,
-        donorName: delivery.donorName,
+        donorNames: delivery.donations.map((d) => d.donorName),
         photo: normalized,
         original: meta instanceof File ? Buffer.from(await meta.arrayBuffer()) : raw,
         seen,
@@ -50,7 +52,7 @@ export async function POST(req: Request) {
         requestText: String(form.get("requestText") || "").slice(0, 2000),
         orgName: String(form.get("orgName") || "").slice(0, 200),
         city: String(form.get("city") || "").slice(0, 100),
-        donorName: String(form.get("donorName") || "").slice(0, 100),
+        donorNames: [String(form.get("donorName") || "").slice(0, 100)].filter(Boolean),
         photo: normalized,
         original: meta instanceof File ? Buffer.from(await meta.arrayBuffer()) : raw,
         seen,

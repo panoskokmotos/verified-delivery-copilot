@@ -66,7 +66,8 @@ export default function Try() {
         <section className="card">
           <h2>2 · What the agent did</h2>
           <StepList steps={steps} />
-          {result && <Verdict result={result} donorName={form.donorName} />}
+          {result && <Verdict result={result} />}
+          {result?.impact.donorMessage && <div className="note"><strong>Draft thank-you note:</strong> {result.impact.donorMessage}</div>}
         </section>
       </div>
     </main>

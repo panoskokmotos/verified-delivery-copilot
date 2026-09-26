@@ -3,6 +3,7 @@ export type NeedItem = {
   name: string;
   quantity: number;
   unit: string;
+  price?: number; // USD per unit, for display
 };
 
 export type Need = {
@@ -20,6 +21,7 @@ export type ItemCheck = {
   seen: number | null; // null when the count can't be read from the photo
   status: "seen" | "partial" | "missing" | "unclear";
   note: string; // one short sentence, e.g. "4 bags visible, brand label readable on 3"
+  where: string; // where the item sits in the photo, e.g. "front left, blue label"
 };
 
 export type VisionCheck = {
@@ -73,6 +75,7 @@ export type StepName = "intake" | "vision" | "integrity" | "org" | "decision" | 
 export type VerificationResult = {
   id: string;
   mode: "live" | "demo";
+  models?: { vision: string; reasoning: string; writer: string }; // exact model IDs that ran, for the receipt
   need: Need;
   vision: VisionCheck;
   integrity: IntegrityCheck;
@@ -81,17 +84,29 @@ export type VerificationResult = {
   impact: ImpactNote;
 };
 
-/** A donation waiting for, or holding, its delivery proof. */
+/** One donor's part of a batched delivery. */
+export type Donation = {
+  donorId: string;
+  donorName: string;
+  items: NeedItem[];
+};
+
+/**
+ * One shipment to a nonprofit, batching the gifts of several donors, like a Givelink delivery.
+ * status: shipping (on its way), awaiting_photo (arrived, needs proof), then the check's verdict.
+ */
 export type Delivery = {
   id: string;
   orgName: string;
   city: string;
   cause: string;
-  donorName: string;
-  requestText: string; // what the nonprofit asked for, in its words
-  items: NeedItem[]; // what the donor gave
-  pledgedAt: string;
-  status: "awaiting_photo" | Decision["verdict"];
+  supplier: string;
+  orderCode: string;
+  arrivesAt: string; // ISO date the supplier gave
+  donations: Donation[];
+  status: "shipping" | "awaiting_photo" | Decision["verdict"];
   updatedAt?: string;
   result?: VerificationResult;
+  thankYouNote?: string; // written by the nonprofit when it shares the proof
+  photoSha256?: string; // of the stored photo, so a receipt can be checked against it later
 };

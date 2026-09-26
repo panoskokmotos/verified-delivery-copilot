@@ -20,7 +20,7 @@ type State = {
 
 const MAX_PER_MONTH = Number(process.env.MAX_VERIFICATIONS_PER_MONTH || 300);
 const STATE = "state.json";
-const LOCAL = path.join(os.tmpdir(), "vdc-store");
+const LOCAL = process.env.VDC_STORE_DIR || path.join(os.tmpdir(), "vdc-store");
 const useBlob = () => Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const empty = (): State => ({ month: thisMonth(), verifications: 0, hashes: [], deliveries: {} });
@@ -59,8 +59,9 @@ async function writeState(state: State, etag?: string) {
 export async function listDeliveries(): Promise<Delivery[]> {
   const { state } = await readState();
   const byId = new Map(SEED.map((d) => [d.id, d]));
-  for (const d of Object.values(state.deliveries)) byId.set(d.id, d);
-  return [...byId.values()].sort((a, b) => b.pledgedAt.localeCompare(a.pledgedAt));
+  // Skip records saved before deliveries were batched (no donations list): the pages can't render them.
+  for (const d of Object.values(state.deliveries)) if (Array.isArray(d.donations)) byId.set(d.id, d);
+  return [...byId.values()].sort((a, b) => a.arrivesAt.localeCompare(b.arrivesAt));
 }
 
 export async function getDelivery(id: string): Promise<Delivery | null> {

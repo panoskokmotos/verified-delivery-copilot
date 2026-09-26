@@ -1,54 +1,84 @@
 import type { Delivery } from "./types";
 
-// Demo donations waiting for a delivery photo. The nonprofits are fictional.
-// On Givelink, these come from real requests by nonprofits the platform already verified.
+// Demo deliveries. The nonprofits are fictional; on Givelink they are nonprofits the platform
+// already verified, and each delivery batches the gifts of several donors.
+const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+
+export const DONORS: Record<string, string> = {
+  maria: "Maria",
+  daniel: "Daniel",
+  eleni: "Eleni",
+  acme: "Acme Corp CSR team",
+  sofia: "Sofia",
+  james: "James",
+};
+const donation = (donorId: string, items: Delivery["donations"][number]["items"]) => ({ donorId, donorName: DONORS[donorId], items });
+
+const DOG_FOOD = { name: "Dry dog food, 30 lb bag", unit: "bags", price: 42 };
+const PET_BLANKET = { name: "Pet blanket", unit: "blankets", price: 15 };
+const NOTEBOOK = { name: "Spiral notebook", unit: "notebooks", price: 2 };
+const PENCILS = { name: "Pack of 12 pencils", unit: "packs", price: 3 };
+const BACKPACK = { name: "Kids backpack", unit: "backpacks", price: 18 };
+const DIAPERS = { name: "Size 4 diaper pack, sealed", unit: "packs", price: 25 };
+const WIPES = { name: "Baby wipes pack", unit: "packs", price: 6 };
+const COAT = { name: "Adult winter coat, size M to XL", unit: "coats", price: 45 };
+
 export const SEED: Delivery[] = [
   {
-    id: "coats-oakland",
-    orgName: "Northgate Family Shelter (demo)",
-    city: "Oakland, CA",
-    cause: "Housing",
-    donorName: "Maria",
-    requestText: "We need 40 new winter coats, adult sizes M to XL, for our overnight shelter before Dec 15.",
-    items: [{ name: "Adult winter coat, size M to XL, new with tags", quantity: 10, unit: "coats" }],
-    pledgedAt: "2026-09-20T10:00:00Z",
-    status: "awaiting_photo",
-  },
-  {
-    id: "diapers-austin",
-    orgName: "Bluebell Community Pantry (demo)",
-    city: "Austin, TX",
-    cause: "Food and basic needs",
-    donorName: "Acme Corp CSR team",
-    requestText: "Food pantry needs 12 packs of size 4 diapers, sealed, any brand.",
-    items: [{ name: "Size 4 diaper pack, sealed", quantity: 12, unit: "packs" }],
-    pledgedAt: "2026-09-21T10:00:00Z",
-    status: "awaiting_photo",
-  },
-  {
-    id: "dogfood-la",
+    id: "paws-of-hope",
     orgName: "Paws of Hope Rescue (demo)",
     city: "Los Angeles, CA",
     cause: "Animals",
-    donorName: "Daniel",
-    requestText: "Please send 10 bags of dry dog food, 30 lb bags, unopened.",
-    items: [{ name: "Dry dog food, 30 lb bag, unopened", quantity: 4, unit: "bags" }],
-    pledgedAt: "2026-09-22T10:00:00Z",
+    supplier: "Chewy",
+    orderCode: "GL-2041",
+    arrivesAt: day(-3),
     status: "awaiting_photo",
+    donations: [
+      donation("daniel", [{ ...DOG_FOOD, quantity: 2 }]),
+      donation("maria", [{ ...DOG_FOOD, quantity: 2 }, { ...PET_BLANKET, quantity: 1 }]),
+      donation("eleni", [{ ...PET_BLANKET, quantity: 3 }]),
+    ],
   },
   {
-    id: "school-chicago",
+    id: "lantern-school",
     orgName: "Lantern After-School Club (demo)",
     city: "Chicago, IL",
     cause: "Education",
-    donorName: "Maria",
-    requestText: "Our 30 kids start the school year without supplies. Notebooks, pencils and backpacks would help most.",
-    items: [
-      { name: "Spiral notebook", quantity: 30, unit: "notebooks" },
-      { name: "Pack of 12 pencils", quantity: 10, unit: "packs" },
-      { name: "Kids backpack", quantity: 5, unit: "backpacks" },
-    ],
-    pledgedAt: "2026-09-23T10:00:00Z",
+    supplier: "Amazon",
+    orderCode: "GL-2038",
+    arrivesAt: day(-1),
     status: "awaiting_photo",
+    donations: [
+      donation("maria", [{ ...NOTEBOOK, quantity: 20 }, { ...PENCILS, quantity: 5 }]),
+      donation("acme", [{ ...NOTEBOOK, quantity: 10 }, { ...PENCILS, quantity: 5 }, { ...BACKPACK, quantity: 5 }]),
+    ],
+  },
+  {
+    id: "bluebell-pantry",
+    orgName: "Bluebell Community Pantry (demo)",
+    city: "Austin, TX",
+    cause: "Food and basic needs",
+    supplier: "Walmart",
+    orderCode: "GL-2035",
+    arrivesAt: day(-5),
+    status: "awaiting_photo",
+    donations: [
+      donation("acme", [{ ...DIAPERS, quantity: 8 }]),
+      donation("sofia", [{ ...DIAPERS, quantity: 4 }, { ...WIPES, quantity: 6 }]),
+    ],
+  },
+  {
+    id: "northgate-shelter",
+    orgName: "Northgate Family Shelter (demo)",
+    city: "Oakland, CA",
+    cause: "Housing",
+    supplier: "Target",
+    orderCode: "GL-2044",
+    arrivesAt: day(2),
+    status: "shipping",
+    donations: [
+      donation("maria", [{ ...COAT, quantity: 5 }]),
+      donation("james", [{ ...COAT, quantity: 5 }]),
+    ],
   },
 ];

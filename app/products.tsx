@@ -1,12 +1,15 @@
+import { itemCount, itemValue } from "../lib/items";
 import type { NeedItem } from "../lib/types";
-import { itemCount, productIcon } from "./labels";
+import { money, productIcon } from "./labels";
 
-/** The items a donor sent, as product cards. */
+/** Products in a delivery as cards, with the item count and value above them. */
 export function Products({ items }: { items: NeedItem[] }) {
+  const value = itemValue(items);
   return (
     <>
       <div className="meta-row">
         Items included <span className="pill">{itemCount(items)}</span>
+        {value > 0 && <>Value <span className="pill">{money(value)}</span></>}
       </div>
       <div className="products">
         {items.map((i, n) => (
