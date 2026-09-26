@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "crypto";
+import { parseLatLon } from "../../../../lib/geo";
 import { normalizePhoto } from "../../../../lib/photo";
 import { runVerification } from "../../../../lib/pipeline";
 import type { NeedItem } from "../../../../lib/types";
@@ -57,6 +58,8 @@ export async function POST(req: Request) {
         photo: await normalizePhoto(raw),
         original: raw,
         seen: knownHashes.slice(-5000).map((h) => ({ hash: String(h.hash), id: String(h.id), at: "" })),
+        orgAt: parseLatLon(form.get("orgLat"), form.get("orgLon")),
+        uploadAt: parseLatLon(form.get("uploadLat"), form.get("uploadLon")),
       },
       () => {},
     );
@@ -69,10 +72,19 @@ export async function POST(req: Request) {
       reasons: decision.reasons,
       nextAction: decision.nextAction,
       items: v.itemChecks,
-      checks: { aiContentLabel: i.aiLabel, reusedPhotoOf: i.duplicateOf, visualAiSigns: v.aiSuspicion, cameraTimestamp: i.photoTakenAt },
+      checks: {
+        aiContentLabel: i.aiLabel,
+        reusedPhotoOf: i.duplicateOf,
+        visualAiSigns: v.aiSuspicion,
+        cameraTimestamp: i.photoTakenAt,
+        photoDistanceKm: i.location.photoKm,
+        uploadDistanceKm: i.location.uploadKm,
+      },
+      notes: i.notes,
       photoHash: i.hash, // store this and send it back in knownHashes next time
       thankYouDraft: result.impact.donorMessage || null,
       models: result.models ?? null,
+      visionModel: v.model ?? null, // the fallback, if the primary vision model timed out
     });
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 502 });

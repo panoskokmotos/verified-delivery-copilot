@@ -5,7 +5,7 @@ Deadline: Fri Oct 30, 2026, 10:00 AM PT. Submit by Oct 28.
 
 ## What it does
 Agent that checks a nonprofit's delivery photo against the original request.
-Pipeline in `lib/pipeline.ts`: intake, vision, integrity, org check, decision, impact note.
+Pipeline in `lib/pipeline.ts`: intake (Nemotron Super), vision (Gemma 3, MiniCPM fallback), integrity (AI label, reuse, location distance), decision (Super, Ultra when borderline), thank-you draft (Nemotron Nano). The nonprofit is already verified by the platform, so no org lookup.
 
 ## Hard rules (the hackathon checks these)
 - Every model call goes through Nebius Token Factory (`lib/nebius.ts`). No other LLM provider.
@@ -26,9 +26,9 @@ Pipeline in `lib/pipeline.ts`: intake, vision, integrity, org check, decision, i
 - `npm run eval` : score the pipeline on `eval/real` and `eval/fake`, writes `eval/report.md`
 
 ## Eval data
-- `eval/real/*.jpg` + `eval/real/labels.json` : real deliveries, faces and addresses blurred. Gitignored.
-- `eval/fake/*.jpg` + `eval/fake/labels.json` : stock, reused, wrong-item photos.
-- Label format: `{ "file.jpg": { "request": "...", "expected": "approve" | "review" | "reject" } }`
+- `eval/real/*.jpg` + `eval/real/labels.json` : real Givelink deliveries, faces blurred. Gitignored, never commit.
+- `eval/fake/` : AI images (label intact) and `stripped-*` copies made by `node scripts/make-fakes.mjs`. Images gitignored, labels tracked.
+- Label format: `{ "file.jpg": { "items": [{ "name": "Dog toy", "quantity": 1, "unit": "toys" }], "expected": "approve" | "review" | "reject", "note": "..." } }`. The eval calls `/api/v1/verify`, so the server needs `VDC_API_KEYS`.
 
 ## Writing style for README, Devpost text, UI copy
 Short sentences. Active voice. No em dashes or en dashes. No hype words.

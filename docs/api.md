@@ -17,6 +17,8 @@ endpoint answers `503`.
 | `knownHashes` | no | JSON array of earlier photos, `[{"hash":"4b2b86969899387c","id":"delivery-123"}]`. Send your history to catch a reused photo. |
 | `deliveryId` | no | Your id. A match against the same id counts as a retake, not reuse. |
 | `orgName`, `city`, `context` | no | Helps the checklist and the thank-you draft. |
+| `orgLat`, `orgLon` | no | The nonprofit's address. With it, GPS in the photo and the upload location become a distance. |
+| `uploadLat`, `uploadLon` | no | Where the phone was at upload, if the nonprofit shared it. Only distances are returned, never coordinates. |
 
 **Response 200:**
 
@@ -31,7 +33,8 @@ endpoint answers `503`.
   "items": [
     { "name": "Paper towels", "expected": 2, "seen": 1, "status": "partial", "where": "front left, on table", "note": "One pack visible." }
   ],
-  "checks": { "aiContentLabel": null, "reusedPhotoOf": null, "visualAiSigns": "none", "cameraTimestamp": null },
+  "checks": { "aiContentLabel": null, "reusedPhotoOf": null, "visualAiSigns": "none", "cameraTimestamp": null, "photoDistanceKm": null, "uploadDistanceKm": 0.3 },
+  "notes": [],
   "photoHash": "7373e0e0e8ccf349",
   "thankYouDraft": "Thank you. ...",
   "models": { "vision": "google/gemma-3-27b-it", "reasoning": "nvidia/nemotron-3-super-120b-a12b", "writer": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B" }

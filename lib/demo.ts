@@ -26,6 +26,7 @@ const COAT = { name: "Adult winter coat, size M to XL", unit: "coats", price: 45
 export const SEED: Delivery[] = [
   {
     id: "paws-of-hope",
+    location: { lat: 34.0522, lon: -118.2437 }, // city center: fictional nonprofit
     orgName: "Paws of Hope Rescue (demo)",
     city: "Los Angeles, CA",
     cause: "Animals",
@@ -41,6 +42,7 @@ export const SEED: Delivery[] = [
   },
   {
     id: "lantern-school",
+    location: { lat: 41.8781, lon: -87.6298 }, // city center: fictional nonprofit
     orgName: "Lantern After-School Club (demo)",
     city: "Chicago, IL",
     cause: "Education",
@@ -55,6 +57,7 @@ export const SEED: Delivery[] = [
   },
   {
     id: "bluebell-pantry",
+    location: { lat: 30.2672, lon: -97.7431 }, // city center: fictional nonprofit
     orgName: "Bluebell Community Pantry (demo)",
     city: "Austin, TX",
     cause: "Food and basic needs",
@@ -69,6 +72,7 @@ export const SEED: Delivery[] = [
   },
   {
     id: "northgate-shelter",
+    location: { lat: 37.8044, lon: -122.2712 }, // city center: fictional nonprofit
     orgName: "Northgate Family Shelter (demo)",
     city: "Oakland, CA",
     cause: "Housing",

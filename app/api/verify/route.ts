@@ -1,5 +1,6 @@
 import { normalizePhoto } from "../../../lib/photo";
 import { runVerification, type VerifyInput } from "../../../lib/pipeline";
+import { parseLatLon } from "../../../lib/geo";
 import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
 import { getDelivery, preflight, saveVerification } from "../../../lib/store";
@@ -46,6 +47,8 @@ export async function POST(req: Request) {
         photo: normalized,
         original: meta instanceof File ? Buffer.from(await meta.arrayBuffer()) : raw,
         seen,
+        orgAt: delivery.location,
+        uploadAt: parseLatLon(form.get("uploadLat"), form.get("uploadLon")),
       }
     : {
         // Free-form check (the /try page and the eval script). Nothing is saved.

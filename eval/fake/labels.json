@@ -1,1 +1,278 @@
-{}
+{
+  "ai-t69xict69xict69x.jpeg": {
+    "items": [
+      {
+        "name": "Kids backpack",
+        "quantity": 4,
+        "unit": "backpacks"
+      },
+      {
+        "name": "Spiral notebook",
+        "quantity": 10,
+        "unit": "notebooks"
+      },
+      {
+        "name": "Pack of 12 pencils",
+        "quantity": 5,
+        "unit": "packs"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, school supplies on a table."
+  },
+  "ai-hgk0elhgk0elhgk0.jpeg": {
+    "items": [
+      {
+        "name": "Dry dog food bag",
+        "quantity": 1,
+        "unit": "bags"
+      },
+      {
+        "name": "Dog toy",
+        "quantity": 1,
+        "unit": "toys"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, Chewy box, dog food and a toy at a shelter."
+  },
+  "ai-udmtpludmtpludmt.jpeg": {
+    "items": [
+      {
+        "name": "Blanket",
+        "quantity": 4,
+        "unit": "blankets"
+      },
+      {
+        "name": "Canned food",
+        "quantity": 6,
+        "unit": "cans"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, box labelled NEW BLANKETS & CANS."
+  },
+  "ai-rq6n44rq6n44rq6n.jpeg": {
+    "items": [
+      {
+        "name": "Blanket",
+        "quantity": 3,
+        "unit": "blankets"
+      },
+      {
+        "name": "Canned food",
+        "quantity": 4,
+        "unit": "cans"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, box of blankets and cans."
+  },
+  "ai-juhkrwjuhkrwjuhk.jpeg": {
+    "items": [
+      {
+        "name": "Box of rice",
+        "quantity": 2,
+        "unit": "boxes"
+      },
+      {
+        "name": "Box of pasta",
+        "quantity": 2,
+        "unit": "boxes"
+      },
+      {
+        "name": "Box of canned soup",
+        "quantity": 2,
+        "unit": "boxes"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, labelled food boxes on a pallet."
+  },
+  "ai-s5ijgbs5ijgbs5ij.jpeg": {
+    "items": [
+      {
+        "name": "Hygiene kit",
+        "quantity": 2,
+        "unit": "kits"
+      },
+      {
+        "name": "Towel",
+        "quantity": 1,
+        "unit": "towels"
+      },
+      {
+        "name": "Pair of socks",
+        "quantity": 2,
+        "unit": "pairs"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, box of hygiene items and clothes."
+  },
+  "ai-3cmv6e3cmv6e3cmv.jpeg": {
+    "items": [
+      {
+        "name": "Blanket",
+        "quantity": 6,
+        "unit": "blankets"
+      },
+      {
+        "name": "Sack of flour",
+        "quantity": 6,
+        "unit": "sacks"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, pallet of sacks and blankets."
+  },
+  "ai-nsef6onsef6onsef.jpeg": {
+    "items": [
+      {
+        "name": "Cardboard box of donations",
+        "quantity": 3,
+        "unit": "boxes"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, boxes handed over at a doorstep."
+  },
+  "stripped-ai-t69xict69xict69x.jpg": {
+    "items": [
+      {
+        "name": "Kids backpack",
+        "quantity": 4,
+        "unit": "backpacks"
+      },
+      {
+        "name": "Spiral notebook",
+        "quantity": 10,
+        "unit": "notebooks"
+      },
+      {
+        "name": "Pack of 12 pencils",
+        "quantity": 5,
+        "unit": "packs"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, school supplies on a table. Metadata stripped, like a screenshot."
+  },
+  "stripped-ai-hgk0elhgk0elhgk0.jpg": {
+    "items": [
+      {
+        "name": "Dry dog food bag",
+        "quantity": 1,
+        "unit": "bags"
+      },
+      {
+        "name": "Dog toy",
+        "quantity": 1,
+        "unit": "toys"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, Chewy box, dog food and a toy at a shelter. Metadata stripped, like a screenshot."
+  },
+  "stripped-ai-udmtpludmtpludmt.jpg": {
+    "items": [
+      {
+        "name": "Blanket",
+        "quantity": 4,
+        "unit": "blankets"
+      },
+      {
+        "name": "Canned food",
+        "quantity": 6,
+        "unit": "cans"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, box labelled NEW BLANKETS & CANS. Metadata stripped, like a screenshot."
+  },
+  "stripped-ai-rq6n44rq6n44rq6n.jpg": {
+    "items": [
+      {
+        "name": "Blanket",
+        "quantity": 3,
+        "unit": "blankets"
+      },
+      {
+        "name": "Canned food",
+        "quantity": 4,
+        "unit": "cans"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, box of blankets and cans. Metadata stripped, like a screenshot."
+  },
+  "stripped-ai-juhkrwjuhkrwjuhk.jpg": {
+    "items": [
+      {
+        "name": "Box of rice",
+        "quantity": 2,
+        "unit": "boxes"
+      },
+      {
+        "name": "Box of pasta",
+        "quantity": 2,
+        "unit": "boxes"
+      },
+      {
+        "name": "Box of canned soup",
+        "quantity": 2,
+        "unit": "boxes"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, labelled food boxes on a pallet. Metadata stripped, like a screenshot."
+  },
+  "stripped-ai-s5ijgbs5ijgbs5ij.jpg": {
+    "items": [
+      {
+        "name": "Hygiene kit",
+        "quantity": 2,
+        "unit": "kits"
+      },
+      {
+        "name": "Towel",
+        "quantity": 1,
+        "unit": "towels"
+      },
+      {
+        "name": "Pair of socks",
+        "quantity": 2,
+        "unit": "pairs"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, box of hygiene items and clothes. Metadata stripped, like a screenshot."
+  },
+  "stripped-ai-3cmv6e3cmv6e3cmv.jpg": {
+    "items": [
+      {
+        "name": "Blanket",
+        "quantity": 6,
+        "unit": "blankets"
+      },
+      {
+        "name": "Sack of flour",
+        "quantity": 6,
+        "unit": "sacks"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, pallet of sacks and blankets. Metadata stripped, like a screenshot."
+  },
+  "stripped-ai-nsef6onsef6onsef.jpg": {
+    "items": [
+      {
+        "name": "Cardboard box of donations",
+        "quantity": 3,
+        "unit": "boxes"
+      }
+    ],
+    "expected": "reject",
+    "note": "Gemini image, boxes handed over at a doorstep. Metadata stripped, like a screenshot."
+  }
+}

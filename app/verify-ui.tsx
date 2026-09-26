@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { IntegrityCheck, ItemCheck, Need, OrgCheck, StepEvent, StepName, VerificationResult, VisionCheck } from "../lib/types";
+import type { IntegrityCheck, ItemCheck, Need, StepEvent, StepName, VerificationResult, VisionCheck } from "../lib/types";
 
 export const STEPS: { key: StepName; title: string; what: string }[] = [
   { key: "intake", title: "Read the gift", what: "Nemotron turns the request and the donor's items into a checklist" },
   { key: "vision", title: "Look at the photo", what: "Vision model checks each item, its count and condition" },
   { key: "integrity", title: "Check the photo is genuine", what: "AI content label, reused-photo fingerprint, timestamp" },
-  { key: "org", title: "Confirm the nonprofit", what: "Tavily web search for the organization" },
   { key: "decision", title: "Decide", what: "Rule score plus Nemotron review, can only get stricter" },
   { key: "impact", title: "Close the loop", what: "Donor thank-you, only after approval" },
 ];
@@ -29,10 +28,6 @@ function summary(key: StepName, data: unknown): string {
     case "integrity": {
       const i = data as IntegrityCheck;
       return i.flags.length ? `${i.flags.length} flag(s)` : `Clean · ${i.photoTakenAt ? "taken " + new Date(i.photoTakenAt).toLocaleDateString() : "no camera timestamp"}`;
-    }
-    case "org": {
-      const o = data as OrgCheck;
-      return o.ran ? (o.found ? "Found on the web" : "Not found") : o.summary;
     }
     default:
       return "";
@@ -201,6 +196,11 @@ export function Verdict({ result }: { result: VerificationResult }) {
             ))}
           </ul>
           <div style={{ marginTop: 6 }}>{result.decision.nextAction} Or send it as is: donors will see exactly which items the photo shows.</div>
+        </div>
+      )}
+      {(result.integrity.notes ?? []).length > 0 && (
+        <div className="notice">
+          {result.integrity.notes.map((n, i) => <div key={i}>📍 {n}</div>)}
         </div>
       )}
       {flags.length > 0 && <ul className="flags">{flags.map((f, i) => <li key={i}>{f}</li>)}</ul>}

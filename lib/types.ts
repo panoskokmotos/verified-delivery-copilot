@@ -32,6 +32,7 @@ export type VisionCheck = {
   deliveryContext: string;
   concerns: string[];
   confidence: number; // 0..1
+  model?: string; // the vision model that answered (the fallback, if the primary timed out)
 };
 
 export type IntegrityCheck = {
@@ -39,18 +40,14 @@ export type IntegrityCheck = {
   hasExif: boolean;
   /** "generated" or "edited" when the file carries an AI content label (C2PA / IPTC). */
   aiLabel: "generated" | "edited" | null;
-  gps: { lat: number; lon: number } | null;
+  // Distances only, never coordinates: km from the nonprofit's address to where the photo says it was
+  // taken (camera GPS) and to where the phone was at upload (shared with permission). null when unknown.
+  location: { photoKm: number | null; uploadKm: number | null };
+  notes: string[]; // worth telling the nonprofit, not a sign of a fake
   hash: string;
   duplicateOf: string | null;
   nearDuplicateDistance: number | null;
   flags: string[];
-};
-
-export type OrgCheck = {
-  ran: boolean;
-  found: boolean;
-  summary: string;
-  sources: { title: string; url: string }[];
 };
 
 export type Decision = {
@@ -58,6 +55,7 @@ export type Decision = {
   score: number; // 0..100
   reasons: string[];
   nextAction: string;
+  model?: string; // which model made the final call
 };
 
 export type ImpactNote = {
@@ -70,16 +68,15 @@ export type StepEvent =
   | { type: "final"; result: VerificationResult; confirmToken?: string } // token: present when the nonprofit may confirm
   | { type: "error"; error: string };
 
-export type StepName = "intake" | "vision" | "integrity" | "org" | "decision" | "impact";
+export type StepName = "intake" | "vision" | "integrity" | "decision" | "impact";
 
 export type VerificationResult = {
   id: string;
   mode: "live" | "demo";
-  models?: { vision: string; reasoning: string; writer: string }; // exact model IDs that ran, for the receipt
+  models?: { vision: string; reasoning: string; writer: string; escalation?: string }; // model IDs configured, for the receipt
   need: Need;
   vision: VisionCheck;
   integrity: IntegrityCheck;
-  org: OrgCheck;
   decision: Decision;
   impact: ImpactNote;
 };
@@ -108,5 +105,6 @@ export type Delivery = {
   updatedAt?: string;
   result?: VerificationResult;
   thankYouNote?: string; // written by the nonprofit when it shares the proof
+  location?: { lat: number; lon: number }; // the nonprofit's address, from its verified profile
   photoSha256?: string; // of the stored photo, so a receipt can be checked against it later
 };

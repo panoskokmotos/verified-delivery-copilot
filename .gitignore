@@ -10,3 +10,6 @@ eval/real/
 eval/report.md
 .DS_Store
 .next-check
+eval/fake/*.jpg
+eval/fake/*.jpeg
+eval/fake/*.png

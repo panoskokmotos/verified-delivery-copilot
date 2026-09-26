@@ -25,6 +25,9 @@ function passed(d: Delivery): string[] {
   if (!r.integrity.aiLabel) out.push("No AI-generated content label in the file.");
   if (!r.integrity.duplicateOf) out.push("The photo doesn't match any earlier delivery photo.");
   if (r.vision.aiSuspicion === "none") out.push("No visual signs of an AI-generated image.");
+  const loc = r.integrity.location;
+  if (loc?.photoKm !== null && loc?.photoKm !== undefined && loc.photoKm <= 25) out.push(`The photo's location data puts it ${loc.photoKm} km from the nonprofit's address.`);
+  if (loc?.uploadKm !== null && loc?.uploadKm !== undefined && loc.uploadKm <= 25) out.push(`It was uploaded ${loc.uploadKm} km from the nonprofit's address.`);
   out.push("The nonprofit saw this check and confirmed it before donors were told.");
   return out;
 }
@@ -119,7 +122,7 @@ export default async function Receipt({ params, searchParams }: { params: Promis
           <dt>Photo SHA-256</dt><dd>{d.photoSha256 ?? "n/a"}</dd>
           <dt>Photo fingerprint</dt><dd>{r.integrity.hash} (dHash, catches reuse)</dd>
           <dt>Models</dt>
-          <dd>{r.models ? `vision ${r.models.vision} · checklist and decision ${r.models.reasoning} · note draft ${r.models.writer}, on Nebius Token Factory` : "Demo mode: models simulated"}</dd>
+          <dd>{r.models ? `vision ${r.vision.model ?? r.models.vision} · checklist ${r.models.reasoning} · decision ${r.decision.model ?? r.models.reasoning} · note draft ${r.models.writer}, on Nebius Token Factory` : "Demo mode: models simulated"}</dd>
         </dl>
         <p className="sub" style={{ marginBottom: 0 }}>
           Checked by <Link href="/">Verified Delivery Copilot</Link>, open source under MIT. Machine-readable:{" "}

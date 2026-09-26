@@ -1,6 +1,6 @@
 import { askJson, isLive, models } from "./nebius";
+import type { LatLon } from "./geo";
 import { checkIntegrity, type Seen } from "./integrity";
-import { checkOrg } from "./tavily";
 import type {
   Decision,
   ImpactNote,
@@ -24,6 +24,8 @@ export type VerifyInput = {
   photo: Buffer; // normalized JPEG: what the model sees and what gets stored
   original: Buffer; // bytes as uploaded (or their metadata header): camera data and AI labels live here
   seen: Seen[]; // fingerprints of earlier delivery photos
+  orgAt?: LatLon; // the nonprofit's address
+  uploadAt?: LatLon; // where the phone was at upload, if the nonprofit shared it
 };
 
 type Emit = (e: StepEvent) => void;
@@ -66,8 +68,8 @@ async function intake(input: VerifyInput): Promise<Need> {
 async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
   if (!isLive()) return demoVision(need);
   const dataUrl = `data:image/jpeg;base64,${input.photo.toString("base64")}`;
-  const v = await askJson<VisionCheck>({
-    model: models.vision,
+  const ask = (model: string) => askJson<VisionCheck>({
+    model,
     maxTokens: 1000,
     system:
       "You audit delivery photos for a donation marketplace. Be skeptical and literal. Only report what is visible. " +
@@ -86,6 +88,15 @@ async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
       { type: "image_url", image_url: { url: dataUrl } },
     ],
   });
+  let model = models.vision;
+  let v: VisionCheck;
+  try {
+    v = await ask(model);
+  } catch {
+    // The primary vision model timed out or failed. Try the fallback once, and say so on the result.
+    model = models.visionFallback;
+    v = await ask(model);
+  }
   // Keep one check per expected item, in order, even if the model skipped or renamed one.
   const itemChecks: ItemCheck[] = need.items.map((it, n) => {
     const c = v.itemChecks?.[n];
@@ -98,7 +109,7 @@ async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
       where: c?.where ?? "",
     };
   });
-  return { ...v, itemChecks, aiSuspicion: v.aiSuspicion ?? "none", concerns: v.concerns ?? [], itemsSeen: v.itemsSeen ?? [] };
+  return { ...v, itemChecks, aiSuspicion: v.aiSuspicion ?? "none", concerns: v.concerns ?? [], itemsSeen: v.itemsSeen ?? [], model };
 }
 
 // ---------- Step 5: score + reasoning ----------
@@ -114,10 +125,9 @@ export function coverage(checks: ItemCheck[]): number {
   return checks.reduce((a, c) => a + one(c), 0) / checks.length;
 }
 
-function ruleScore(need: Need, v: VisionCheck, flags: string[], duplicate: boolean, orgFound: boolean | null) {
+function ruleScore(need: Need, v: VisionCheck, flags: string[], duplicate: boolean) {
   let s = Math.round(v.confidence * 40 + coverage(v.itemChecks) * 45);
   if (need.condition === "any" || (need.condition === "new" && v.condition === "new") || (need.condition === "gently_used" && v.condition !== "damaged")) s += 10;
-  if (orgFound) s += 5;
   if (v.aiSuspicion === "some") s -= 15;
   if (v.aiSuspicion === "strong") s -= 40;
   s -= flags.length * 10;
@@ -130,21 +140,23 @@ async function decide(
   v: VisionCheck,
   flags: string[],
   duplicate: boolean,
-  orgFound: boolean | null,
   aiLabel: IntegrityCheck["aiLabel"],
+  notes: string[] = [],
 ): Promise<Decision> {
-  const score = ruleScore(need, v, flags, duplicate, orgFound);
+  const score = ruleScore(need, v, flags, duplicate);
   // Two separate questions. Is the photo genuine? Does it show every product?
   // Only a fake, a reused photo, or one showing none of the gift is rejected. A genuine photo that
   // misses some products is "review": the nonprofit is told what's missing and may still send it.
   const fake = duplicate || aiLabel === "generated" || v.aiSuspicion === "strong";
   const showsNothing = v.itemChecks.every((c) => c.status === "missing");
   const complete = v.itemChecks.every((c) => c.status === "seen");
-  const clean = aiLabel !== "edited" && v.aiSuspicion === "none";
+  const clean = aiLabel !== "edited" && v.aiSuspicion === "none" && notes.length === 0;
   const base: Decision["verdict"] = fake || showsNothing ? "reject" : complete && clean && score >= 75 ? "approve" : "review";
   if (!isLive()) return demoDecision(base, score, v, flags);
-  const d = await askJson<Omit<Decision, "score">>({
-    model: models.reasoning,
+  // Clear cases (clean approve, obvious fake) go to Super. Borderline ones go to Ultra.
+  const model = base === "review" ? models.escalation : models.reasoning;
+  const d = await askJson<Omit<Decision, "score" | "model">>({
+    model,
     system:
       "You are the final reviewer for a donation delivery. A rule engine proposed a verdict. You may keep it or make it stricter (approve->review, review->reject), never looser. " +
       "'reject' means the photo is not genuine (AI-generated, reused, staged stock image) or shows none of the donated items. " +
@@ -152,14 +164,14 @@ async function decide(
       "The photo is the only evidence a nonprofit provides: never ask for receipts, delivery slips, addresses or signatures. " +
       "Return verdict ('approve'|'review'|'reject'), reasons (2-4 short plain sentences a nonprofit ops person understands), " +
       "nextAction (one concrete instruction to the nonprofit, e.g. 'Retake the photo so the size labels on the coats are readable').",
-    user: JSON.stringify({ need, vision: v, integrityFlags: flags, duplicate, aiLabel, orgFound, ruleScore: score, proposedVerdict: base }),
+    user: JSON.stringify({ need, vision: v, integrityFlags: flags, locationNotes: notes, duplicate, aiLabel, ruleScore: score, proposedVerdict: base }),
   });
   const order = { approve: 0, review: 1, reject: 2 } as const;
   let verdict = order[d.verdict] >= order[base] ? d.verdict : base;
   // The reviewer may only reject for a reason about the photo itself, not for missing items.
   const suspicious = flags.length > 0 || v.aiSuspicion !== "none";
   if (verdict === "reject" && base !== "reject" && !suspicious) verdict = "review";
-  return { verdict, score, reasons: d.reasons, nextAction: d.nextAction };
+  return { verdict, score, reasons: d.reasons, nextAction: d.nextAction, model };
 }
 
 // ---------- Step 6: draft the nonprofit's thank-you note ----------
@@ -184,19 +196,19 @@ export async function runVerification(input: VerifyInput, emit: Emit): Promise<V
   const id = input.id ?? "DLV-" + Date.now().toString(36).toUpperCase();
   const need = await step(emit, "intake", isLive() ? models.reasoning : undefined, () => intake(input));
 
-  // Photo check, integrity, and org lookup run in parallel.
-  const [v, integrity, org] = await Promise.all([
+  // The nonprofit is already verified by the platform it signs in to, so no org lookup here.
+  // Photo check and integrity run in parallel.
+  const [v, integrity] = await Promise.all([
     step(emit, "vision", isLive() ? models.vision : undefined, () => vision(input, need)),
-    step(emit, "integrity", undefined, () => checkIntegrity(input.original, input.photo, id, input.seen)),
-    step(emit, "org", process.env.TAVILY_API_KEY ? "tavily" : undefined, () => checkOrg(input.orgName, input.city)),
+    step(emit, "integrity", undefined, () => checkIntegrity(input.original, input.photo, id, input.seen, input.orgAt, input.uploadAt)),
   ]);
 
-  const decision = await step(emit, "decision", isLive() ? models.reasoning : undefined, () =>
-    decide(need, v, integrity.flags, Boolean(integrity.duplicateOf), org.ran ? org.found : null, integrity.aiLabel),
+  const decision = await step(emit, "decision", isLive() ? "Nemotron 3 Super, or Ultra when borderline" : undefined, () =>
+    decide(need, v, integrity.flags, Boolean(integrity.duplicateOf), integrity.aiLabel, integrity.notes),
   );
   const note = await step(emit, "impact", isLive() ? models.writer : undefined, () => impact(input, need, v, decision));
 
-  return { id, mode: isLive() ? "live" : "demo", models: isLive() ? { ...models } : undefined, need, vision: v, integrity, org, decision, impact: note };
+  return { id, mode: isLive() ? "live" : "demo", models: isLive() ? { ...models } : undefined, need, vision: v, integrity, decision, impact: note };
 }
 
 // ---------- Demo mode (no API key): deterministic stand-ins so the UI works offline ----------

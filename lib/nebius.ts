@@ -2,8 +2,12 @@ import OpenAI from "openai";
 
 export const models = {
   vision: process.env.NEMOTRON_VISION_MODEL || "google/gemma-3-27b-it",
+  // Used when the vision model doesn't answer in time. Faster, but echoes the request more, so it's not the default.
+  visionFallback: process.env.NEMOTRON_VISION_FALLBACK || "openbmb/MiniCPM-V-4_5",
   reasoning: process.env.NEMOTRON_REASONING_MODEL || "nvidia/nemotron-3-super-120b-a12b",
   writer: process.env.NEMOTRON_WRITER_MODEL || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+  // Only for borderline calls: bigger and pricier per token, so everyday decisions stay on Super.
+  escalation: process.env.NEMOTRON_ULTRA_MODEL || "nvidia/Nemotron-3-Ultra-550b-a55b",
 };
 
 export const isLive = () => Boolean(process.env.NEBIUS_API_KEY);
@@ -28,6 +32,9 @@ function nebius() {
     client = new OpenAI({
       apiKey: process.env.NEBIUS_API_KEY,
       baseURL: process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1",
+      // The SDK default is 10 minutes with 2 retries. One slow model call must not stall a delivery check.
+      timeout: 60_000,
+      maxRetries: 1,
     });
   }
   return client;

@@ -11,6 +11,20 @@ export function Upload({ delivery }: { delivery: Delivery }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  // Optional: where the phone is right now. Only a distance to the nonprofit's address is kept.
+  const [shareLocation, setShareLocation] = useState(false);
+  const [here, setHere] = useState<{ lat: number; lon: number } | null>(null);
+
+  function toggleLocation(on: boolean) {
+    setShareLocation(on);
+    if (!on) return setHere(null);
+    navigator.geolocation?.getCurrentPosition(
+      (p) => setHere({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => setShareLocation(false),
+      { enableHighAccuracy: false, timeout: 10_000 },
+    );
+  }
+  const fields = () => ({ deliveryId: delivery.id, ...(here ? { uploadLat: String(here.lat), uploadLon: String(here.lon) } : {}) });
   const inputRef = useRef<HTMLInputElement>(null);
   const { steps, result, error, busy, run, confirm, canConfirm, confirmed } = useVerify();
   const last = result ?? delivery.result;
@@ -60,8 +74,12 @@ export function Upload({ delivery }: { delivery: Delivery }) {
               )}
             </div>
             <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pick(e.target.files?.[0] ?? null)} />
+            <label className="check">
+              <input type="checkbox" checked={shareLocation} onChange={(e) => toggleLocation(e.target.checked)} />
+              Add my location to this proof <span className="sub">(only the distance to your address is kept)</span>
+            </label>
             {!result && (
-              <button className="btn primary block" disabled={busy || !file} onClick={() => file && run(file, { deliveryId: delivery.id })}>
+              <button className="btn primary block" disabled={busy || !file} onClick={() => file && run(file, fields())}>
                 {checking ? "Checking every item…" : "Check photo"}
               </button>
             )}
@@ -71,7 +89,7 @@ export function Upload({ delivery }: { delivery: Delivery }) {
                   {result.decision.verdict === "review" ? "Retake to show everything" : "Retake or choose another photo"}
                 </button>
                 {file && (
-                  <button className="btn subtle block" disabled={busy} onClick={() => run(file, { deliveryId: delivery.id })}>Check this photo</button>
+                  <button className="btn subtle block" disabled={busy} onClick={() => run(file, fields())}>Check this photo</button>
                 )}
               </>
             )}

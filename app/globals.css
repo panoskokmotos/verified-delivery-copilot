@@ -188,3 +188,5 @@ textarea.note-input { min-height: 110px; margin-top: 6px; }
 .notice { margin-top: 14px; padding: 14px 16px; border-radius: var(--r); background: var(--soft-warning); color: #6d4800; }
 .notice .title { color: #8a5a00; }
 .notice ul { margin: 6px 0 0; padding-left: 18px; }
+.check { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; color: var(--ink); }
+.check input { width: 16px; height: 16px; accent-color: var(--primary); }
