@@ -179,3 +179,12 @@ footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
 .kv dd { margin: 0; word-break: break-all; font-family: ui-monospace, monospace; font-size: 12px; }
 .receipt-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; flex-wrap: wrap; }
 textarea.note-input { min-height: 110px; margin-top: 6px; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 24px; }
+@media (max-width: 700px) { .tiles { grid-template-columns: 1fr 1fr; } }
+.tile .big-num { font-family: var(--font-heading), sans-serif; font-size: 28px; font-weight: 700; color: var(--primary); }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { text-align: left; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.table td { padding: 8px; border-bottom: 1px solid var(--line); }
+.notice { margin-top: 14px; padding: 14px 16px; border-radius: var(--r); background: var(--soft-warning); color: #6d4800; }
+.notice .title { color: #8a5a00; }
+.notice ul { margin: 6px 0 0; padding-left: 18px; }

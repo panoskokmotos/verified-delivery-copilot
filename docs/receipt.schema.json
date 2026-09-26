@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "delivery-receipt/v1",
+  "title": "Delivery receipt",
+  "description": "Proof that an in-kind donation arrived: every donated item checked against the nonprofit's delivery photo, with what the check could not establish. Donor names are not included.",
+  "type": "object",
+  "required": ["schema", "id", "issuedAt", "issuer", "nonprofit", "items", "photo", "checks", "verdict", "limits"],
+  "properties": {
+    "schema": { "const": "delivery-receipt/v1" },
+    "id": { "type": "string", "description": "Delivery id at the issuer." },
+    "issuedAt": { "type": "string", "format": "date-time", "description": "When the nonprofit shared the checked proof." },
+    "issuer": {
+      "type": "object",
+      "required": ["name", "url"],
+      "properties": { "name": { "type": "string" }, "url": { "type": "string", "format": "uri" } }
+    },
+    "nonprofit": {
+      "type": "object",
+      "required": ["name"],
+      "properties": { "name": { "type": "string" }, "city": { "type": "string" }, "cause": { "type": "string" } }
+    },
+    "shipment": {
+      "type": "object",
+      "properties": {
+        "supplier": { "type": "string" },
+        "orderCode": { "type": "string" },
+        "arrivedAt": { "type": "string", "format": "date" }
+      }
+    },
+    "donations": {
+      "type": "array",
+      "description": "Each donor's part of the delivery, anonymized as donor-1, donor-2, ...",
+      "items": {
+        "type": "object",
+        "required": ["donor", "items"],
+        "properties": {
+          "donor": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "quantity"],
+              "properties": { "name": { "type": "string" }, "quantity": { "type": "integer", "minimum": 1 } }
+            }
+          }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "description": "Every product in the delivery, summed across donors, as checked against the photo.",
+      "items": {
+        "type": "object",
+        "required": ["name", "expected", "seen", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "expected": { "type": "integer", "minimum": 1 },
+          "seen": { "type": ["integer", "null"], "description": "Count visible in the photo, null if it can't be counted." },
+          "status": { "enum": ["seen", "partial", "missing", "unclear"] },
+          "where": { "type": "string", "description": "Where the item sits in the photo, in words." },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "photo": {
+      "type": "object",
+      "required": ["dhash", "url"],
+      "properties": {
+        "sha256": { "type": ["string", "null"], "description": "SHA-256 of the stored photo. Recompute it to prove the photo wasn't swapped." },
+        "dhash": { "type": "string", "description": "64-bit difference hash, used to catch the same photo reused for another delivery." },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "required": ["genuine", "complete"],
+      "properties": {
+        "genuine": { "type": "boolean", "description": "No AI content label, not reused, no strong visual signs of AI." },
+        "aiContentLabel": { "enum": ["generated", "edited", null], "description": "C2PA / IPTC DigitalSourceType label found in the file." },
+        "reusedPhoto": { "type": "boolean" },
+        "visualAiSigns": { "enum": ["none", "some", "strong"] },
+        "cameraTimestamp": { "type": ["string", "null"], "format": "date-time", "description": "Informational. Missing is normal for photos sent over messaging apps." },
+        "complete": { "type": "boolean", "description": "Every product fully visible." },
+        "confirmedByNonprofit": { "type": "boolean" }
+      }
+    },
+    "verdict": { "enum": ["complete", "partial"], "description": "partial: the photo is genuine but doesn't show every product." },
+    "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "limits": { "type": "array", "items": { "type": "string" }, "description": "What this check could not establish." },
+    "thankYouNote": { "type": ["string", "null"], "description": "Written by the nonprofit." },
+    "models": {
+      "type": ["object", "null"],
+      "properties": { "vision": { "type": "string" }, "reasoning": { "type": "string" }, "writer": { "type": "string" } }
+    }
+  }
+}

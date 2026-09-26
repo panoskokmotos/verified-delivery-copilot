@@ -134,30 +134,39 @@ async function decide(
   aiLabel: IntegrityCheck["aiLabel"],
 ): Promise<Decision> {
   const score = ruleScore(need, v, flags, duplicate, orgFound);
-  // A reused or AI-generated photo is always rejected. An AI-edited one never auto-approves.
-  const byScore: Decision["verdict"] = score >= 75 ? "approve" : score >= 45 ? "review" : "reject";
-  const base: Decision["verdict"] =
-    duplicate || aiLabel === "generated" ? "reject" : aiLabel === "edited" && byScore === "approve" ? "review" : byScore;
+  // Two separate questions. Is the photo genuine? Does it show every product?
+  // Only a fake, a reused photo, or one showing none of the gift is rejected. A genuine photo that
+  // misses some products is "review": the nonprofit is told what's missing and may still send it.
+  const fake = duplicate || aiLabel === "generated" || v.aiSuspicion === "strong";
+  const showsNothing = v.itemChecks.every((c) => c.status === "missing");
+  const complete = v.itemChecks.every((c) => c.status === "seen");
+  const clean = aiLabel !== "edited" && v.aiSuspicion === "none";
+  const base: Decision["verdict"] = fake || showsNothing ? "reject" : complete && clean && score >= 75 ? "approve" : "review";
   if (!isLive()) return demoDecision(base, score, v, flags);
   const d = await askJson<Omit<Decision, "score">>({
     model: models.reasoning,
     system:
       "You are the final reviewer for a donation delivery. A rule engine proposed a verdict. You may keep it or make it stricter (approve->review, review->reject), never looser. " +
+      "'reject' means the photo is not genuine (AI-generated, reused, staged stock image) or shows none of the donated items. " +
+      "A genuine photo where some items are missing, partly visible or hard to count is 'review', never 'reject': the nonprofit gets a notice and may retake it. " +
       "The photo is the only evidence a nonprofit provides: never ask for receipts, delivery slips, addresses or signatures. " +
       "Return verdict ('approve'|'review'|'reject'), reasons (2-4 short plain sentences a nonprofit ops person understands), " +
       "nextAction (one concrete instruction to the nonprofit, e.g. 'Retake the photo so the size labels on the coats are readable').",
     user: JSON.stringify({ need, vision: v, integrityFlags: flags, duplicate, aiLabel, orgFound, ruleScore: score, proposedVerdict: base }),
   });
   const order = { approve: 0, review: 1, reject: 2 } as const;
-  const verdict = order[d.verdict] >= order[base] ? d.verdict : base;
+  let verdict = order[d.verdict] >= order[base] ? d.verdict : base;
+  // The reviewer may only reject for a reason about the photo itself, not for missing items.
+  const suspicious = flags.length > 0 || v.aiSuspicion !== "none";
+  if (verdict === "reject" && base !== "reject" && !suspicious) verdict = "review";
   return { verdict, score, reasons: d.reasons, nextAction: d.nextAction };
 }
 
 // ---------- Step 6: draft the nonprofit's thank-you note ----------
 // As on Givelink, the nonprofit sends the donors a thank-you note with the proof. The model drafts it,
-// the nonprofit edits it before sending. Nothing is drafted until the photo checks out.
+// the nonprofit edits it before sending. Nothing is drafted for a rejected photo.
 async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: Decision): Promise<ImpactNote> {
-  if (decision.verdict !== "approve") {
+  if (decision.verdict === "reject") {
     return { donorMessage: "", publicCaption: "" };
   }
   if (!isLive()) return demoImpact(input, need);

@@ -65,11 +65,13 @@ export function Upload({ delivery }: { delivery: Delivery }) {
                 {checking ? "Checking every item…" : "Check photo"}
               </button>
             )}
-            {result && !canConfirm && (
+            {result && (!canConfirm || result.decision.verdict === "review") && (
               <>
-                <button className="btn secondary block" onClick={() => inputRef.current?.click()} disabled={busy}>Retake or choose another photo</button>
+                <button className="btn secondary block" onClick={() => inputRef.current?.click()} disabled={busy}>
+                  {result.decision.verdict === "review" ? "Retake to show everything" : "Retake or choose another photo"}
+                </button>
                 {file && (
-                  <button className="btn subtle block" disabled={busy} onClick={() => run(file, { deliveryId: delivery.id })}>Check this photo again</button>
+                  <button className="btn subtle block" disabled={busy} onClick={() => run(file, { deliveryId: delivery.id })}>Check this photo</button>
                 )}
               </>
             )}
@@ -93,7 +95,7 @@ export function Upload({ delivery }: { delivery: Delivery }) {
             <textarea id="note" className="note-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What do these items unlock for your work?" />
             <p className="sub">We drafted this from your photo. Make it yours.</p>
             <button className="btn gradient block" disabled={busy || !note.trim()} onClick={() => confirm(delivery.id, note)}>
-              {busy ? "Sending…" : `Send proof to all ${n} donors`}
+              {busy ? "Sending…" : result?.decision.verdict === "review" ? `Send as is to all ${n} donors` : `Send proof to all ${n} donors`}
             </button>
           </>
         )}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { allItems, itemCount } from "../../../lib/items";
+import { receiptLimits } from "../../../lib/receipt";
 import { getDelivery } from "../../../lib/store";
 import type { Delivery } from "../../../lib/types";
 import { DonorItems } from "../../donor-items";
@@ -28,17 +29,6 @@ function passed(d: Delivery): string[] {
   return out;
 }
 
-/** What the check could not establish. Saying so is part of the receipt. */
-function limits(d: Delivery): string[] {
-  const r = d.result!;
-  const out = r.vision.itemChecks.filter((c) => c.status !== "seen").map((c) => `${c.name}: ${c.note}`);
-  out.push("Counts come from one photo taken from one angle, so items behind others may be missed.");
-  out.push("The photo shows the whole delivery. It can't show which unit came from which donor.");
-  if (!r.integrity.photoTakenAt) out.push("The photo has no camera timestamp (common for photos sent over WhatsApp), so we can't say when it was taken.");
-  if (!r.integrity.aiLabel) out.push("AI images whose label was stripped, for example by a screenshot, are caught only by the visual check, which is weaker.");
-  return out;
-}
-
 export default async function Receipt({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ donor?: string }> }) {
   const d = await getDelivery((await params).id);
   if (!d) notFound();
@@ -58,12 +48,18 @@ export default async function Receipt({ params, searchParams }: { params: Promis
   }
 
   const path = `/proof/${d.id}${donor ? `?donor=${donor.donorId}` : ""}`;
+  const seenCount = r.vision.itemChecks.filter((c) => c.status === "seen").length;
+  const complete = seenCount === r.vision.itemChecks.length;
   return (
     <main>
       <div className="card">
         <div className="receipt-head">
           <div>
-            <span className="pill success">✓ Delivery verified</span>
+            {complete ? (
+              <span className="pill success">✓ Delivery verified</span>
+            ) : (
+              <span className="pill warning">✓ Genuine photo · {seenCount} of {r.vision.itemChecks.length} products fully visible</span>
+            )}
             <h1 style={{ fontSize: 26, margin: "10px 0 4px" }}>{d.orgName}</h1>
             <p className="sub" style={{ margin: 0 }}>
               {d.city} · {itemCount(allItems(d))} items from {d.donations.length} donors · arrived {fmtDate(d.arrivesAt)} · checked {d.updatedAt ? fmtDate(d.updatedAt) : ""}
@@ -108,7 +104,7 @@ export default async function Receipt({ params, searchParams }: { params: Promis
         <section className="card">
           <h2>What a photo can't prove</h2>
           <ul className="checks">
-            {limits(d).map((t, i) => <li key={i}><span className="warn-i">!</span>{t}</li>)}
+            {receiptLimits(d).map((t, i) => <li key={i}><span className="warn-i">!</span>{t}</li>)}
           </ul>
         </section>
       </div>
@@ -126,7 +122,8 @@ export default async function Receipt({ params, searchParams }: { params: Promis
           <dd>{r.models ? `vision ${r.models.vision} · checklist and decision ${r.models.reasoning} · note draft ${r.models.writer}, on Nebius Token Factory` : "Demo mode: models simulated"}</dd>
         </dl>
         <p className="sub" style={{ marginBottom: 0 }}>
-          Checked by <Link href="/">Verified Delivery Copilot</Link>, open source under MIT.
+          Checked by <Link href="/">Verified Delivery Copilot</Link>, open source under MIT. Machine-readable:{" "}
+          <a href={`/api/receipts/${d.id}`}>receipt JSON</a> (format delivery-receipt/v1).
         </p>
       </section>
     </main>

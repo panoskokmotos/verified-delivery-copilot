@@ -177,7 +177,7 @@ export function ItemChecks({ checks }: { checks: ItemCheck[] }) {
   );
 }
 
-const HEADLINE = { approve: "Every item checks out", review: "Almost there: retake the photo", reject: "This photo can't be accepted" };
+const HEADLINE = { approve: "Every item checks out", review: "Genuine photo, some items not fully visible", reject: "This photo can't be accepted" };
 
 export function Verdict({ result }: { result: VerificationResult }) {
   const flags = result.integrity.flags.filter((f) => !result.decision.reasons.includes(f));
@@ -190,8 +190,19 @@ export function Verdict({ result }: { result: VerificationResult }) {
           {HEADLINE[result.decision.verdict]} · {result.decision.score}/100
         </div>
         <ul>{result.decision.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
-        {!approved && <div className="next">Next: {result.decision.nextAction}</div>}
+        {result.decision.verdict === "reject" && <div className="next">Next: {result.decision.nextAction}</div>}
       </div>
+      {result.decision.verdict === "review" && (
+        <div className="notice">
+          <div className="title">Heads up: not everything shows in this photo</div>
+          <ul>
+            {result.vision.itemChecks.filter((c) => c.status !== "seen").map((c, i) => (
+              <li key={i}>{c.name}: {c.seen ?? "?"} of {c.expected} visible. {c.note}</li>
+            ))}
+          </ul>
+          <div style={{ marginTop: 6 }}>{result.decision.nextAction} Or send it as is: donors will see exactly which items the photo shows.</div>
+        </div>
+      )}
       {flags.length > 0 && <ul className="flags">{flags.map((f, i) => <li key={i}>{f}</li>)}</ul>}
     </>
   );

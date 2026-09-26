@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import { normalizePhoto } from "../../../lib/photo";
 import { runVerification, type VerifyInput } from "../../../lib/pipeline";
 import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   }
 
   const raw = Buffer.from(await photo.arrayBuffer());
-  const normalized = await sharp(raw).rotate().resize(1600, 1600, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
+  const normalized = await normalizePhoto(raw);
 
   const input: VerifyInput = delivery
     ? {
@@ -72,7 +72,8 @@ export async function POST(req: Request) {
           // AI-labeled or reused photos are the exception, recorded right away so fakes can't be retried quietly.
           if (result.integrity.aiLabel === "generated" || result.integrity.duplicateOf) {
             await saveVerification({ ...delivery, status: "reject", updatedAt: new Date().toISOString(), result }, normalized);
-          } else if (result.decision.verdict === "approve") {
+          } else if (result.decision.verdict !== "reject") {
+            // Complete, or genuine but partial: the nonprofit may send it. The receipt says which items show.
             confirmToken = signCheck(delivery.id, raw, JSON.stringify(result));
           }
         }

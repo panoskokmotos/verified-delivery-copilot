@@ -23,7 +23,7 @@ export default function Home() {
         </Link>
       </div>
       <footer>
-        <Link href="/try">Try any photo</Link> · Demo data with fictional nonprofits · Built for the Nebius x NVIDIA Global AI Hackathon on Nebius Token Factory
+        <Link href="/try">Try any photo</Link> · <Link href="/stats">Open delivery data</Link> · Demo data with fictional nonprofits · Built for the Nebius x NVIDIA Global AI Hackathon on Nebius Token Factory
       </footer>
     </main>
   );
