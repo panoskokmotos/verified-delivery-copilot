@@ -60,14 +60,19 @@ export function useVerify() {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The exact bytes sent for the check. Confirming sends them again, since the signature covers them.
+  const [sent, setSent] = useState<{ photo: Blob; name: string; token?: string } | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   async function run(file: File, fields: Record<string, string>) {
     setBusy(true);
     setError(null);
     setResult(null);
     setSteps({});
+    setSent(null);
     try {
       const { photo, meta } = await prepare(file);
+      setSent({ photo, name: file.name });
       const body = new FormData();
       Object.entries(fields).forEach(([k, v]) => body.append(k, v));
       body.append("photo", photo, file.name);
@@ -90,7 +95,10 @@ export function useVerify() {
           if (!line.trim()) continue;
           const e = JSON.parse(line) as StepEvent;
           if (e.type === "step") setSteps((s) => ({ ...s, [e.step]: { status: e.status, ms: e.ms, model: e.model, data: e.data, error: e.error } }));
-          if (e.type === "final") setResult(e.result);
+          if (e.type === "final") {
+            setResult(e.result);
+            setSent((s) => (s ? { ...s, token: e.confirmToken } : s));
+          }
           if (e.type === "error") setError(e.error);
         }
       }
@@ -101,7 +109,29 @@ export function useVerify() {
     }
   }
 
-  return { steps, result, error, busy, run };
+  /** Saves an approved check so the donor sees it. Only possible when the check returned a token. */
+  async function confirm(deliveryId: string) {
+    if (!result || !sent?.token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.append("deliveryId", deliveryId);
+      body.append("result", JSON.stringify(result));
+      body.append("confirmToken", sent.token);
+      body.append("photo", sent.photo, sent.name);
+      const res = await fetch("/api/confirm", { method: "POST", body });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || `Confirm failed (${res.status})`);
+      setConfirmed(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return { steps, result, error, busy, run, confirm, canConfirm: Boolean(sent?.token) && !confirmed, confirmed };
 }
 
 export function StepList({ steps }: { steps: Record<string, StepState> }) {
@@ -125,8 +155,9 @@ export function StepList({ steps }: { steps: Record<string, StepState> }) {
   );
 }
 
-const MARK: Record<ItemCheck["status"], string> = { seen: "✓", partial: "◐", missing: "✗", unclear: "?" };
+const MARK: Record<ItemCheck["status"], string> = { seen: "✓", partial: "!", missing: "✕", unclear: "?" };
 
+/** Each donated item against what the photo shows: green tick, amber partial, red missing. */
 export function ItemChecks({ checks }: { checks: ItemCheck[] }) {
   return (
     <ul className="items">
@@ -134,34 +165,35 @@ export function ItemChecks({ checks }: { checks: ItemCheck[] }) {
         <li key={i} className={c.status}>
           <span className="mark">{MARK[c.status]}</span>
           <div>
-            <div className="title">
-              {c.name} <span className="sub">· {c.seen ?? "?"} of {c.expected}</span>
-            </div>
+            <div className="title">{c.name}</div>
             <div className="sub">{c.note}</div>
           </div>
+          <span className="count">{c.seen ?? "?"}/{c.expected}</span>
         </li>
       ))}
     </ul>
   );
 }
 
+const HEADLINE = { approve: "Every item checks out", review: "Almost there: retake the photo", reject: "This photo can't be accepted" };
+
 export function Verdict({ result, donorName }: { result: VerificationResult; donorName?: string }) {
   const flags = result.integrity.flags.filter((f) => !result.decision.reasons.includes(f));
   const approved = result.decision.verdict === "approve";
   return (
     <>
+      <ItemChecks checks={result.vision.itemChecks} />
       <div className={`verdict ${result.decision.verdict}`}>
         <div className="big">
-          {result.decision.verdict} · {result.decision.score}/100
+          {HEADLINE[result.decision.verdict]} · {result.decision.score}/100
         </div>
         <ul>{result.decision.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
         {!approved && <div className="next">Next: {result.decision.nextAction}</div>}
       </div>
-      <ItemChecks checks={result.vision.itemChecks} />
       {flags.length > 0 && <ul className="flags">{flags.map((f, i) => <li key={i}>{f}</li>)}</ul>}
       {approved && (
         <div className="note">
-          <strong>To {donorName || "the donor"}:</strong> {result.impact.donorMessage}
+          <strong>{donorName || "The donor"} will read:</strong> {result.impact.donorMessage}
         </div>
       )}
     </>

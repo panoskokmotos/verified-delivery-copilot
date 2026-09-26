@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { runVerification, type VerifyInput } from "../../../lib/pipeline";
+import { signCheck } from "../../../lib/sign";
 import { getDelivery, preflight, saveVerification } from "../../../lib/store";
 import type { StepEvent } from "../../../lib/types";
 
@@ -63,11 +64,17 @@ export async function POST(req: Request) {
       const emit = (e: StepEvent) => controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
       try {
         const result = await runVerification(input, emit);
+        let confirmToken: string | undefined;
         if (delivery) {
-          const now = new Date().toISOString();
-          await saveVerification({ ...delivery, status: result.decision.verdict, updatedAt: now, result }, normalized);
+          // A check is a preview: the nonprofit sees it and confirms before anything is saved.
+          // AI-labeled or reused photos are the exception, recorded right away so fakes can't be retried quietly.
+          if (result.integrity.aiLabel === "generated" || result.integrity.duplicateOf) {
+            await saveVerification({ ...delivery, status: "reject", updatedAt: new Date().toISOString(), result }, normalized);
+          } else if (result.decision.verdict === "approve") {
+            confirmToken = signCheck(delivery.id, raw, JSON.stringify(result));
+          }
         }
-        emit({ type: "final", result });
+        emit({ type: "final", result, confirmToken });
       } catch (err) {
         emit({ type: "error", error: err instanceof Error ? err.message : String(err) });
       } finally {

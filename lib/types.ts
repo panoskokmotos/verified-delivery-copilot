@@ -65,7 +65,7 @@ export type ImpactNote = {
 
 export type StepEvent =
   | { type: "step"; step: StepName; status: "running" | "done" | "skipped" | "error"; model?: string; ms?: number; data?: unknown; error?: string }
-  | { type: "final"; result: VerificationResult }
+  | { type: "final"; result: VerificationResult; confirmToken?: string } // token: present when the nonprofit may confirm
   | { type: "error"; error: string };
 
 export type StepName = "intake" | "vision" | "integrity" | "org" | "decision" | "impact";

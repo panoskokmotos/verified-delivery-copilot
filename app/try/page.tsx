@@ -57,7 +57,7 @@ export default function Try() {
             {preview ? <img src={preview} alt="Delivery photo" /> : "Tap to add the delivery photo (JPG, PNG, WEBP)"}
           </div>
           <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pick(e.target.files?.[0] ?? null)} />
-          <button className="go" disabled={busy} onClick={() => (file ? (setLocalError(null), run(file, form)) : setLocalError("Add a delivery photo first."))}>
+          <button className="btn primary block" disabled={busy} onClick={() => (file ? (setLocalError(null), run(file, form)) : setLocalError("Add a delivery photo first."))}>
             {busy ? "Verifying…" : "Verify delivery"}
           </button>
           {(localError || error) && <p className="err">{localError || error}</p>}
