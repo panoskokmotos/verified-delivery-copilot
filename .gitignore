@@ -8,3 +8,4 @@ node_modules
 # real delivery photos stay private
 eval/real/
 eval/report.md
+.DS_Store
