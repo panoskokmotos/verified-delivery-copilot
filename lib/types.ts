@@ -4,6 +4,7 @@ export type NeedItem = {
   quantity: number;
   unit: string;
   price?: number; // USD per unit, for display
+  image?: string; // product photo URL from the catalog, shown next to the delivery photo for comparison
 };
 
 export type Need = {
@@ -33,6 +34,8 @@ export type VisionCheck = {
   concerns: string[];
   confidence: number; // 0..1
   model?: string; // the vision model that answered (the fallback, if the primary timed out)
+  // A packing slip or shipping label in the photo, read as text. The order code is compared with the delivery's.
+  slip?: { visible: boolean; orderCode: string | null; lines: { name: string; quantity: number | null }[]; matchesOrder?: boolean | null };
 };
 
 export type IntegrityCheck = {
@@ -74,6 +77,11 @@ export type VerificationResult = {
   id: string;
   mode: "live" | "demo";
   models?: { vision: string; reasoning: string; writer: string; escalation?: string }; // model IDs configured, for the receipt
+  // How the photo was taken. inApp: shot with the app's live camera, not picked from the gallery (reported
+  // by the app). location: where the phone was, shared with permission; for the platform's admin only.
+  capture?: { inApp: boolean; location: { lat: number; lon: number } | null };
+  usage?: import("./prices").Usage[]; // tokens per model call
+  cost?: import("./prices").Cost; // what this check cost
   need: Need;
   vision: VisionCheck;
   integrity: IntegrityCheck;
@@ -107,4 +115,16 @@ export type Delivery = {
   thankYouNote?: string; // written by the nonprofit when it shares the proof
   location?: { lat: number; lon: number }; // the nonprofit's address, from its verified profile
   photoSha256?: string; // of the stored photo, so a receipt can be checked against it later
+  questions?: Question[]; // donors ask, the nonprofit answers
+};
+
+/** A donor's question about a delivery, and the nonprofit's answer. */
+export type Question = {
+  id: string;
+  donorId: string;
+  donorName: string;
+  text: string;
+  askedAt: string;
+  answer?: string;
+  answeredAt?: string;
 };

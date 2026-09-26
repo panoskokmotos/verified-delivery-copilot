@@ -7,9 +7,6 @@ export function km(a: LatLon, b: LatLon): number {
   return Math.round(12742 * Math.asin(Math.sqrt(h)) * 10) / 10;
 }
 
-// Beyond this, a location is worth a notice. A charity may shoot the goods at its warehouse, so it never rejects.
-export const NEAR_KM = 25;
-
 export function parseLatLon(lat: unknown, lon: unknown): LatLon | undefined {
   const a = Number(lat);
   const b = Number(lon);

@@ -27,8 +27,9 @@ export type Receipt = {
     reusedPhoto: boolean;
     visualAiSigns: "none" | "some" | "strong";
     cameraTimestamp: string | null;
-    photoDistanceKm: number | null;
-    uploadDistanceKm: number | null;
+    takenInApp: boolean;
+    locationSharedWithPlatform: boolean;
+    packingSlipMatchesOrder: boolean | null;
     complete: boolean;
     confirmedByNonprofit: boolean;
   };
@@ -45,8 +46,8 @@ export function receiptLimits(d: Delivery): string[] {
   const out = r.vision.itemChecks.filter((c) => c.status !== "seen").map((c) => `${c.name}: ${c.note}`);
   out.push("Counts come from one photo taken from one angle, so items behind others may be missed.");
   out.push("The photo shows the whole delivery. It can't show which unit came from which donor.");
-  const loc = r.integrity.location;
-  if (!loc || (loc.photoKm === null && loc.uploadKm === null)) out.push("The photo carries no location and none was shared at upload, so we can't say where it was taken.");
+  if (!r.capture?.inApp) out.push("The photo was picked from the phone's gallery, not taken live in the app, so it could be older or from elsewhere.");
+  else out.push("\"Taken in the app\" is reported by the app itself. A tampered phone could fake it.");
   if (!r.integrity.photoTakenAt) out.push("The photo has no camera timestamp (common for photos sent over WhatsApp), so we can't say when it was taken.");
   if (!r.integrity.aiLabel) out.push("AI images whose label was stripped, for example by a screenshot, are caught only by the visual check, which is weaker.");
   return out;
@@ -73,8 +74,9 @@ export function toReceipt(d: Delivery, origin: string): Receipt | null {
       reusedPhoto: Boolean(r.integrity.duplicateOf),
       visualAiSigns: r.vision.aiSuspicion,
       cameraTimestamp: r.integrity.photoTakenAt,
-      photoDistanceKm: r.integrity.location?.photoKm ?? null,
-      uploadDistanceKm: r.integrity.location?.uploadKm ?? null,
+      takenInApp: Boolean(r.capture?.inApp),
+      locationSharedWithPlatform: Boolean(r.capture?.location),
+      packingSlipMatchesOrder: r.vision.slip?.matchesOrder ?? null,
       complete,
       confirmedByNonprofit: true,
     },

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import type { Usage } from "./prices";
 
 export const models = {
   vision: process.env.NEMOTRON_VISION_MODEL || "google/gemma-3-27b-it",
@@ -58,7 +59,10 @@ export async function askJson<T>(opts: {
   system: string;
   user: Content;
   maxTokens?: number;
+  usage?: Usage[]; // token counts of every call made here get appended, for the cost of the check
 }): Promise<T> {
+  const track = (model: string, u?: OpenAI.CompletionUsage) =>
+    opts.usage?.push({ model, input: u?.prompt_tokens ?? 0, output: u?.completion_tokens ?? 0 });
   spendCall();
   const res = await nebius().chat.completions.create({
     model: opts.model,
@@ -69,6 +73,7 @@ export async function askJson<T>(opts: {
       { role: "user", content: opts.user },
     ],
   });
+  track(opts.model, res.usage);
   const text = res.choices[0]?.message?.content ?? "";
   try {
     return extractJson<T>(text);
@@ -84,6 +89,7 @@ export async function askJson<T>(opts: {
         { role: "user", content: text },
       ],
     });
+    track(models.writer, fix.usage);
     return extractJson<T>(fix.choices[0]?.message?.content ?? "");
   }
 }

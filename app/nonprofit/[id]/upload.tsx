@@ -1,46 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { allItems } from "../../../lib/items";
 import type { Delivery } from "../../../lib/types";
+import { Camera, type Shot } from "../../camera";
 import { Products } from "../../products";
-import { StepList, Verdict, useVerify } from "../../verify-ui";
+import { Questions } from "../../questions";
+import { CheckCost, StepList, Verdict, useVerify } from "../../verify-ui";
 
 export function Upload({ delivery }: { delivery: Delivery }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [shot, setShot] = useState<Shot | null>(null);
   const [note, setNote] = useState("");
-  // Optional: where the phone is right now. Only a distance to the nonprofit's address is kept.
-  const [shareLocation, setShareLocation] = useState(false);
-  const [here, setHere] = useState<{ lat: number; lon: number } | null>(null);
-
-  function toggleLocation(on: boolean) {
-    setShareLocation(on);
-    if (!on) return setHere(null);
-    navigator.geolocation?.getCurrentPosition(
-      (p) => setHere({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => setShareLocation(false),
-      { enableHighAccuracy: false, timeout: 10_000 },
-    );
-  }
-  const fields = () => ({ deliveryId: delivery.id, ...(here ? { uploadLat: String(here.lat), uploadLon: String(here.lon) } : {}) });
-  const inputRef = useRef<HTMLInputElement>(null);
   const { steps, result, error, busy, run, confirm, canConfirm, confirmed } = useVerify();
   const last = result ?? delivery.result;
   const done = confirmed || delivery.status === "approve";
   const checking = busy && !result;
   const n = delivery.donations.length;
+  const onShot = useCallback((s: Shot | null) => setShot(s), []);
 
   // When the photo checks out, start the thank-you note from the model's draft. The nonprofit edits it.
   useEffect(() => {
     if (canConfirm && result?.impact.donorMessage) setNote(result.impact.donorMessage);
   }, [canConfirm, result]);
 
-  function pick(f: File | null) {
-    setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
-  }
+  const check = () => shot && run(shot, { deliveryId: delivery.id });
 
   return (
     <div className="grid">
@@ -54,44 +38,19 @@ export function Upload({ delivery }: { delivery: Delivery }) {
         <Products items={allItems(delivery)} />
 
         {done ? (
-          <p className="ok">Proof shared with {n} donors. Each sees the photo and their own items, checked.</p>
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="viewfinder" style={{ marginTop: 14 }} src={`/api/photo/${delivery.id}?v=${delivery.updatedAt ?? ""}`} alt="Delivery proof" />
+            <p className="ok">Proof shared with {n} donors. Each sees this photo and their own items, checked.</p>
+          </>
         ) : (
           <>
             <h2 style={{ marginTop: 18 }}>Upload delivery proof</h2>
-            <div className="drop" onClick={() => !busy && inputRef.current?.click()}>
-              {preview ? (
-                <img src={preview} alt="Delivery photo" />
-              ) : (
-                <>
-                  Add a photo
-                  <ul>
-                    <li>All donated items, with labels readable</li>
-                    <li>Taken where they arrived</li>
-                    <li>Your sign or logo, if you can</li>
-                    <li>Only people who agreed to be in it</li>
-                  </ul>
-                </>
-              )}
-            </div>
-            <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pick(e.target.files?.[0] ?? null)} />
-            <label className="check">
-              <input type="checkbox" checked={shareLocation} onChange={(e) => toggleLocation(e.target.checked)} />
-              Add my location to this proof <span className="sub">(only the distance to your address is kept)</span>
-            </label>
-            {!result && (
-              <button className="btn primary block" disabled={busy || !file} onClick={() => file && run(file, fields())}>
-                {checking ? "Checking every item…" : "Check photo"}
+            <Camera onShot={onShot} disabled={busy} />
+            {shot && (!result || !canConfirm) && (
+              <button className="btn primary block" disabled={busy} onClick={check}>
+                {checking ? "Checking every item…" : result ? "Check this photo" : "Check photo"}
               </button>
-            )}
-            {result && (!canConfirm || result.decision.verdict === "review") && (
-              <>
-                <button className="btn secondary block" onClick={() => inputRef.current?.click()} disabled={busy}>
-                  {result.decision.verdict === "review" ? "Retake to show everything" : "Retake or choose another photo"}
-                </button>
-                {file && (
-                  <button className="btn subtle block" disabled={busy} onClick={() => run(file, fields())}>Check this photo</button>
-                )}
-              </>
             )}
             {error && <p className="err">{error}</p>}
           </>
@@ -122,11 +81,19 @@ export function Upload({ delivery }: { delivery: Delivery }) {
             <Link href={`/proof/${delivery.id}`}>See the public receipt →</Link>
           </p>
         )}
+        {last && <CheckCost result={last} />}
         <details className="how" open={checking}>
           <summary>What the agent did</summary>
           <StepList steps={steps} />
         </details>
       </section>
+
+      {done && (
+        <section className="card" style={{ gridColumn: "1 / -1" }}>
+          <h2>Questions from donors</h2>
+          <Questions delivery={delivery} as="nonprofit" />
+        </section>
+      )}
     </div>
   );
 }

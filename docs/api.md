@@ -13,12 +13,13 @@ endpoint answers `503`.
 | Field | Required | What |
 |---|---|---|
 | `photo` | yes | JPG, PNG or WEBP, as uploaded by the nonprofit (keep the original bytes: AI content labels live in them) |
-| `items` | yes | JSON array, 1 to 50: `[{"name":"Dry dog food, 30 lb bag","quantity":4,"unit":"bags"}]` |
+| `items` | yes | JSON array, 1 to 50: `[{"name":"Dry dog food, 30 lb bag","quantity":4,"unit":"bags","image":"https://..."}]`. `image` (optional) is the catalog photo, shown to donors next to the delivery photo. |
 | `knownHashes` | no | JSON array of earlier photos, `[{"hash":"4b2b86969899387c","id":"delivery-123"}]`. Send your history to catch a reused photo. |
 | `deliveryId` | no | Your id. A match against the same id counts as a retake, not reuse. |
 | `orgName`, `city`, `context` | no | Helps the checklist and the thank-you draft. |
+| `orderCode` | no | The supplier order. If a packing slip in the photo shows a different order, that counts against the photo. |
 | `orgLat`, `orgLon` | no | The nonprofit's address. With it, GPS in the photo and the upload location become a distance. |
-| `uploadLat`, `uploadLon` | no | Where the phone was at upload, if the nonprofit shared it. Only distances are returned, never coordinates. |
+| `uploadLat`, `uploadLon` | no | Where the phone was at capture, if the nonprofit shared it. Returned only as a distance, for your admin. Don't publish it. |
 
 **Response 200:**
 

@@ -5,6 +5,7 @@ import { listDeliveries } from "../../../lib/store";
 import type { Delivery } from "../../../lib/types";
 import { DonorItems } from "../../donor-items";
 import { DONOR_STATUS, fmtDate } from "../../labels";
+import { Questions } from "../../questions";
 import { ShareButton } from "../../share-button";
 
 export const dynamic = "force-dynamic";
@@ -82,7 +83,10 @@ export default async function DonorGifts({ params }: { params: Promise<{ donorId
                   <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
                     <Link className="btn primary sm" href={`/proof/${d.id}?donor=${donorId}`}>View receipt</Link>
                     <ShareButton path={`/proof/${d.id}?donor=${donorId}`} label="Share this story" />
+                    <a className="btn subtle sm" href={`/api/photo/${d.id}?download=1`}>Download photo</a>
                   </div>
+                  <div className="title" style={{ marginTop: 18 }}>Questions for {d.orgName}</div>
+                  <Questions delivery={d} as={{ donorId }} />
                 </>
               )}
             </li>

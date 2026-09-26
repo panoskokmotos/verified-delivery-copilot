@@ -74,7 +74,15 @@ export function DeliveryCard({ d, linked = true }: { d: Delivery; linked?: boole
       <div className="body">
         <div className="title" style={{ marginBottom: 10 }}>{d.orgName}</div>
         <StatePanel d={d} linked={linked} />
-        <Products items={allItems(d)} />
+        {d.status === "approve" ? (
+          <div className="photo-pair">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/photo/${d.id}`} alt={`Delivery proof at ${d.orgName}`} />
+            <div><Products items={allItems(d)} /></div>
+          </div>
+        ) : (
+          <Products items={allItems(d)} />
+        )}
       </div>
       <div className="foot">
         <span>Supplier: <span className="avatar">{d.supplier[0]}</span>{d.supplier}</span>

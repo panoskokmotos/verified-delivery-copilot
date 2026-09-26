@@ -15,7 +15,8 @@ export function Products({ items }: { items: NeedItem[] }) {
         {items.map((i, n) => (
           <div className="product" key={n}>
             <span className="qty">×{i.quantity}</span>
-            <div className="img">{productIcon(i.name)}</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <div className="img">{i.image ? <img src={i.image} alt={i.name} /> : productIcon(i.name)}</div>
             <div className="name">{i.name}</div>
           </div>
         ))}

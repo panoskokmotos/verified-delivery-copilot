@@ -1,5 +1,6 @@
 import { askJson, isLive, models } from "./nebius";
 import type { LatLon } from "./geo";
+import { costOf, type Usage } from "./prices";
 import { checkIntegrity, type Seen } from "./integrity";
 import type {
   Decision,
@@ -24,6 +25,7 @@ export type VerifyInput = {
   photo: Buffer; // normalized JPEG: what the model sees and what gets stored
   original: Buffer; // bytes as uploaded (or their metadata header): camera data and AI labels live here
   seen: Seen[]; // fingerprints of earlier delivery photos
+  orderCode?: string; // the supplier order this delivery came from, to match a packing slip against
   orgAt?: LatLon; // the nonprofit's address
   uploadAt?: LatLon; // where the phone was at upload, if the nonprofit shared it
 };
@@ -47,10 +49,11 @@ async function step<T>(emit: Emit, name: StepName, model: string | undefined, fn
 const itemLine = (i: NeedItem) => `${i.quantity} ${i.unit} of ${i.name}`;
 
 // ---------- Step 1: turn the request and the gift into a checklist ----------
-async function intake(input: VerifyInput): Promise<Need> {
+async function intake(input: VerifyInput, usage: Usage[]): Promise<Need> {
   if (!isLive()) return demoNeed(input);
   const given = input.items?.length ? input.items : null;
   const need = await askJson<Need>({
+    usage,
     model: models.reasoning,
     system:
       "You structure in-kind donations into a checklist a delivery photo can be checked against. " +
@@ -65,10 +68,11 @@ async function intake(input: VerifyInput): Promise<Need> {
 }
 
 // ---------- Step 2: the vision model checks each item against the photo ----------
-async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
+async function vision(input: VerifyInput, need: Need, usage: Usage[]): Promise<VisionCheck> {
   if (!isLive()) return demoVision(need);
   const dataUrl = `data:image/jpeg;base64,${input.photo.toString("base64")}`;
   const ask = (model: string) => askJson<VisionCheck>({
+    usage,
     model,
     maxTokens: 1000,
     system:
@@ -77,7 +81,8 @@ async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
       "status ('seen' all or nearly all visible | 'partial' some visible | 'missing' not visible | 'unclear' can't tell), note (one short sentence), where (where it sits in the photo in a few words a person can follow, e.g. 'front left, blue bags' or 'not visible')}), " +
       "aiSuspicion ('none'|'some'|'strong': visual signs the image is AI-generated, e.g. garbled label text, melted shapes, impossible lighting, repeated textures), " +
       "condition ('new'|'used'|'damaged'|'unclear'), deliveryContext (one sentence: where this seems to be, e.g. shelter storage room, doorstep, stock photo), " +
-      "concerns (list: stock imagery, screenshots, watermarks, wrong item, partial delivery, AI artifacts), confidence (0..1 that this photo proves the gift was delivered).",
+      "concerns (list: stock imagery, screenshots, watermarks, wrong item, partial delivery, AI artifacts), confidence (0..1 that this photo proves the gift was delivered), " +
+      "slip ({visible, orderCode, lines}: if a packing slip, invoice or shipping label is readable, copy its order or reference number exactly and its item lines as {name, quantity}; otherwise visible false, orderCode null, lines []).",
     user: [
       {
         type: "text",
@@ -109,7 +114,12 @@ async function vision(input: VerifyInput, need: Need): Promise<VisionCheck> {
       where: c?.where ?? "",
     };
   });
-  return { ...v, itemChecks, aiSuspicion: v.aiSuspicion ?? "none", concerns: v.concerns ?? [], itemsSeen: v.itemsSeen ?? [], model };
+  // Compare a readable order code with the delivery's own. Only letters and digits count ("GL 2041" = "GL-2041").
+  const norm = (s: string) => s.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  const slip = v.slip?.visible
+    ? { visible: true, orderCode: v.slip.orderCode ?? null, lines: v.slip.lines ?? [], matchesOrder: v.slip.orderCode && input.orderCode ? norm(v.slip.orderCode) === norm(input.orderCode) : null }
+    : { visible: false, orderCode: null, lines: [], matchesOrder: null };
+  return { ...v, itemChecks, aiSuspicion: v.aiSuspicion ?? "none", concerns: v.concerns ?? [], itemsSeen: v.itemsSeen ?? [], model, slip };
 }
 
 // ---------- Step 5: score + reasoning ----------
@@ -142,6 +152,7 @@ async function decide(
   duplicate: boolean,
   aiLabel: IntegrityCheck["aiLabel"],
   notes: string[] = [],
+  usage: Usage[] = [],
 ): Promise<Decision> {
   const score = ruleScore(need, v, flags, duplicate);
   // Two separate questions. Is the photo genuine? Does it show every product?
@@ -156,6 +167,7 @@ async function decide(
   // Clear cases (clean approve, obvious fake) go to Super. Borderline ones go to Ultra.
   const model = base === "review" ? models.escalation : models.reasoning;
   const d = await askJson<Omit<Decision, "score" | "model">>({
+    usage,
     model,
     system:
       "You are the final reviewer for a donation delivery. A rule engine proposed a verdict. You may keep it or make it stricter (approve->review, review->reject), never looser. " +
@@ -177,12 +189,13 @@ async function decide(
 // ---------- Step 6: draft the nonprofit's thank-you note ----------
 // As on Givelink, the nonprofit sends the donors a thank-you note with the proof. The model drafts it,
 // the nonprofit edits it before sending. Nothing is drafted for a rejected photo.
-async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: Decision): Promise<ImpactNote> {
+async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: Decision, usage: Usage[]): Promise<ImpactNote> {
   if (decision.verdict === "reject") {
     return { donorMessage: "", publicCaption: "" };
   }
   if (!isLive()) return demoImpact(input, need);
   return askJson<ImpactNote>({
+    usage,
     model: models.writer,
     system:
       "Draft the thank-you note a nonprofit sends to the donors of a delivery that just arrived, in the nonprofit's voice (we). " +
@@ -194,21 +207,63 @@ async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: 
 
 export async function runVerification(input: VerifyInput, emit: Emit): Promise<VerificationResult> {
   const id = input.id ?? "DLV-" + Date.now().toString(36).toUpperCase();
-  const need = await step(emit, "intake", isLive() ? models.reasoning : undefined, () => intake(input));
+  const usage: Usage[] = []; // every model call's tokens, for the cost of this check
+  const done = (r: Omit<VerificationResult, "id" | "mode" | "models" | "usage" | "cost">): VerificationResult => ({
+    id, mode: isLive() ? "live" : "demo", models: isLive() ? { ...models } : undefined, ...r, usage, cost: costOf(usage),
+  });
 
-  // The nonprofit is already verified by the platform it signs in to, so no org lookup here.
-  // Photo check and integrity run in parallel.
-  const [v, integrity] = await Promise.all([
-    step(emit, "vision", isLive() ? models.vision : undefined, () => vision(input, need)),
-    step(emit, "integrity", undefined, () => checkIntegrity(input.original, input.photo, id, input.seen, input.orgAt, input.uploadAt)),
-  ]);
-
-  const decision = await step(emit, "decision", isLive() ? "Nemotron 3 Super, or Ultra when borderline" : undefined, () =>
-    decide(need, v, integrity.flags, Boolean(integrity.duplicateOf), integrity.aiLabel, integrity.notes),
+  // 1. Is the photo genuine? Instant and free, so it goes first. The nonprofit is already verified by
+  //    the platform it signs in to, so there's no org lookup.
+  const integrity = await step(emit, "integrity", undefined, () =>
+    checkIntegrity(input.original, input.photo, id, input.seen, input.orgAt, input.uploadAt),
   );
-  const note = await step(emit, "impact", isLive() ? models.writer : undefined, () => impact(input, need, v, decision));
+  const given: Need | null = input.items?.length
+    ? { items: input.items, condition: "any", category: "", deadline: null, mustHave: [] }
+    : null;
 
-  return { id, mode: isLive() ? "live" : "demo", models: isLive() ? { ...models } : undefined, need, vision: v, integrity, decision, impact: note };
+  // An AI-labeled or reused photo stops here: no model call can make it genuine, so none is spent.
+  if (integrity.aiLabel === "generated" || integrity.duplicateOf) {
+    const need = given ?? demoNeed(input);
+    for (const s of ["intake", "vision", "decision", "impact"] as const) emit({ type: "step", step: s, status: "skipped" });
+    return done({
+      need,
+      vision: {
+        itemsSeen: [], condition: "unclear", deliveryContext: "", concerns: [], confidence: 0, aiSuspicion: "none",
+        itemChecks: need.items.map((i) => ({ name: i.name, expected: i.quantity, seen: null, status: "unclear", note: "Not checked: the photo failed the genuine check.", where: "" })),
+      },
+      integrity,
+      decision: {
+        verdict: "reject",
+        score: 0,
+        reasons: integrity.flags.slice(0, 3),
+        nextAction: "Take a new photo of the delivered items with the app camera.",
+        model: "rules",
+      },
+      impact: { donorMessage: "", publicCaption: "" },
+    });
+  }
+
+  // 2. Read the gift and look at the photo. With the donor's items known, both run at once.
+  const [need, v] = given
+    ? await Promise.all([
+        step(emit, "intake", isLive() ? models.reasoning : undefined, () => intake(input, usage)),
+        step(emit, "vision", isLive() ? models.vision : undefined, () => vision(input, given, usage)),
+      ])
+    : await (async () => {
+        const n = await step(emit, "intake", isLive() ? models.reasoning : undefined, () => intake(input, usage));
+        return [n, await step(emit, "vision", isLive() ? models.vision : undefined, () => vision(input, n, usage))] as const;
+      })();
+
+  // A slip from a different order is a doubt about the photo, like a reused photo.
+  if (v.slip?.matchesOrder === false) {
+    integrity.flags.push(`The packing slip shows order ${v.slip.orderCode}, not this delivery's ${input.orderCode}.`);
+  }
+  const decision = await step(emit, "decision", isLive() ? "Nemotron 3 Super, or Ultra when borderline" : undefined, () =>
+    decide(need, v, integrity.flags, Boolean(integrity.duplicateOf), integrity.aiLabel, integrity.notes, usage),
+  );
+  const note = await step(emit, "impact", isLive() ? models.writer : undefined, () => impact(input, need, v, decision, usage));
+
+  return done({ need, vision: v, integrity, decision, impact: note });
 }
 
 // ---------- Demo mode (no API key): deterministic stand-ins so the UI works offline ----------

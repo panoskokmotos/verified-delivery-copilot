@@ -4,11 +4,11 @@ import { useState } from "react";
 import type { IntegrityCheck, ItemCheck, Need, StepEvent, StepName, VerificationResult, VisionCheck } from "../lib/types";
 
 export const STEPS: { key: StepName; title: string; what: string }[] = [
-  { key: "intake", title: "Read the gift", what: "Nemotron turns the request and the donor's items into a checklist" },
-  { key: "vision", title: "Look at the photo", what: "Vision model checks each item, its count and condition" },
-  { key: "integrity", title: "Check the photo is genuine", what: "AI content label, reused-photo fingerprint, timestamp" },
-  { key: "decision", title: "Decide", what: "Rule score plus Nemotron review, can only get stricter" },
-  { key: "impact", title: "Close the loop", what: "Donor thank-you, only after approval" },
+  { key: "integrity", title: "Check the photo is genuine", what: "AI content label and reused-photo fingerprint. Instant, and a fake stops here" },
+  { key: "intake", title: "Read the gift", what: "Nemotron turns the donors' items into a checklist" },
+  { key: "vision", title: "Look at the photo", what: "Vision model checks each item, its count, and any packing slip" },
+  { key: "decision", title: "Decide", what: "Rule score plus Nemotron review (Ultra when borderline), can only get stricter" },
+  { key: "impact", title: "Draft the thank-you", what: "Nemotron Nano drafts your note to the donors" },
 ];
 
 type StepState = { status: "idle" | "running" | "done" | "error" | "skipped"; ms?: number; model?: string; data?: unknown; error?: string };
@@ -34,21 +34,8 @@ function summary(key: StepName, data: unknown): string {
   }
 }
 
-/**
- * Vercel caps a request at 4.5 MB. Large photos are shrunk in the browser, and the first 512 KB
- * of the original goes along with them: that header holds the camera data and any AI content label.
- */
-async function prepare(file: File): Promise<{ photo: Blob; meta?: Blob }> {
-  if (file.size <= 4_000_000) return { photo: file };
-  const bmp = await createImageBitmap(file);
-  const scale = Math.min(1, 2048 / Math.max(bmp.width, bmp.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bmp.width * scale);
-  canvas.height = Math.round(bmp.height * scale);
-  canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-  const photo = await new Promise<Blob>((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error("Could not read the photo"))), "image/jpeg", 0.85));
-  return { photo, meta: file.slice(0, 512 * 1024) };
-}
+/** A photo ready to check: from the camera component, or any image file. */
+export type Upload = { photo: Blob; name: string; meta?: Blob; inApp?: boolean; location?: { lat: number; lon: number } | null };
 
 export function useVerify() {
   const [steps, setSteps] = useState<Record<string, StepState>>({});
@@ -59,19 +46,23 @@ export function useVerify() {
   const [sent, setSent] = useState<{ photo: Blob; name: string; token?: string } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  async function run(file: File, fields: Record<string, string>) {
+  async function run(up: Upload, fields: Record<string, string>) {
     setBusy(true);
     setError(null);
     setResult(null);
     setSteps({});
     setSent(null);
     try {
-      const { photo, meta } = await prepare(file);
-      setSent({ photo, name: file.name });
+      setSent({ photo: up.photo, name: up.name });
       const body = new FormData();
       Object.entries(fields).forEach(([k, v]) => body.append(k, v));
-      body.append("photo", photo, file.name);
-      if (meta) body.append("meta", meta, "meta.bin");
+      body.append("photo", up.photo, up.name);
+      if (up.meta) body.append("meta", up.meta, "meta.bin");
+      if (up.inApp) body.append("capture", "camera");
+      if (up.location) {
+        body.append("uploadLat", String(up.location.lat));
+        body.append("uploadLon", String(up.location.lon));
+      }
       const res = await fetch("/api/verify", { method: "POST", body });
       if (!res.ok || !res.body) {
         const j = await res.json().catch(() => ({}));
@@ -140,7 +131,9 @@ export function StepList({ steps }: { steps: Record<string, StepState> }) {
             <span className={`dot ${st.status}`} />
             <div>
               <div className="title">{s.title}</div>
-              <div className="sub">{st.status === "error" ? st.error : summary(s.key, st.data) || s.what}</div>
+              <div className="sub">
+                {st.status === "error" ? st.error : st.status === "skipped" ? "Skipped: the photo failed the genuine check." : summary(s.key, st.data) || s.what}
+              </div>
               {st.model && <div className="sub">model: {st.model}</div>}
             </div>
             <span className="ms">{st.ms !== undefined ? `${(st.ms / 1000).toFixed(1)}s` : ""}</span>
@@ -212,5 +205,18 @@ export function Verdict({ result }: { result: VerificationResult }) {
       )}
       {flags.length > 0 && <ul className="flags">{flags.map((f, i) => <li key={i}>{f}</li>)}</ul>}
     </>
+  );
+}
+
+/** What this check cost: tokens always, dollars when every model's price is known. */
+export function CheckCost({ result }: { result: VerificationResult }) {
+  const c = result.cost;
+  if (!c || result.mode !== "live") return null;
+  const calls = result.usage?.length ?? 0;
+  return (
+    <p className="cost">
+      This check: {calls} model {calls === 1 ? "call" : "calls"}, {c.tokens.toLocaleString("en-US")} tokens
+      {c.usd !== null ? ` · $${c.usd.toFixed(4)}` : " · add prices for the other models to see the dollar cost"}
+    </p>
   );
 }

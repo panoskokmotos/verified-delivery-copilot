@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import exifr from "exifr";
-import { NEAR_KM, km, type LatLon } from "./geo";
+import { km, type LatLon } from "./geo";
 import type { IntegrityCheck } from "./types";
 
 /** A fingerprint of an earlier delivery photo, kept in the store. */
@@ -77,12 +77,9 @@ export async function checkIntegrity(
     flags.push("Photo timestamp is in the future. The metadata was likely edited.");
   }
 
-  // Location only adds confidence. Missing GPS is normal (messaging apps strip it); far away earns a
-  // notice, since goods are sometimes photographed at a warehouse.
+  // Location is for the platform's admin only: never shown publicly, never part of the verdict.
   const notes: string[] = [];
   const location = { photoKm: gps && orgAt ? km(gps, orgAt) : null, uploadKm: uploadAt && orgAt ? km(uploadAt, orgAt) : null };
-  if (location.photoKm !== null && location.photoKm > NEAR_KM) notes.push(`The photo's location data is ${location.photoKm} km from your address. If you took it elsewhere, say so in your note.`);
-  if (location.uploadKm !== null && location.uploadKm > NEAR_KM) notes.push(`This upload came from ${location.uploadKm} km away from your address.`);
 
   const aiLabel = readAiLabel(original);
   if (aiLabel === "generated") flags.push("The file is labeled as AI-generated (C2PA / IPTC content label).");

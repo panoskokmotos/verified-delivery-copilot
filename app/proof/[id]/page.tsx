@@ -7,6 +7,7 @@ import { getDelivery } from "../../../lib/store";
 import type { Delivery } from "../../../lib/types";
 import { DonorItems } from "../../donor-items";
 import { fmtDate } from "../../labels";
+import { Questions } from "../../questions";
 import { ShareButton } from "../../share-button";
 import { ItemChecks } from "../../verify-ui";
 
@@ -25,9 +26,8 @@ function passed(d: Delivery): string[] {
   if (!r.integrity.aiLabel) out.push("No AI-generated content label in the file.");
   if (!r.integrity.duplicateOf) out.push("The photo doesn't match any earlier delivery photo.");
   if (r.vision.aiSuspicion === "none") out.push("No visual signs of an AI-generated image.");
-  const loc = r.integrity.location;
-  if (loc?.photoKm !== null && loc?.photoKm !== undefined && loc.photoKm <= 25) out.push(`The photo's location data puts it ${loc.photoKm} km from the nonprofit's address.`);
-  if (loc?.uploadKm !== null && loc?.uploadKm !== undefined && loc.uploadKm <= 25) out.push(`It was uploaded ${loc.uploadKm} km from the nonprofit's address.`);
+  if (r.capture?.inApp) out.push("Taken live with the app's camera, not picked from a gallery.");
+  if (r.vision.slip?.matchesOrder) out.push(`The packing slip in the photo shows this delivery's order, ${r.vision.slip.orderCode}.`);
   out.push("The nonprofit saw this check and confirmed it before donors were told.");
   return out;
 }
@@ -51,10 +51,17 @@ export default async function Receipt({ params, searchParams }: { params: Promis
   }
 
   const path = `/proof/${d.id}${donor ? `?donor=${donor.donorId}` : ""}`;
+  const back = donor ? { href: `/donor/${donor.donorId}`, label: `← ${donor.donorName}'s gifts` } : { href: "/stats", label: "← All deliveries" };
   const seenCount = r.vision.itemChecks.filter((c) => c.status === "seen").length;
   const complete = seenCount === r.vision.itemChecks.length;
   return (
     <main>
+      <nav className="crumbs">
+        <Link className="back" href={back.href}>{back.label}</Link>
+        <span>
+          <Link className="back" href="/">Home</Link> · <Link className="back" href={`/api/receipts/${d.id}`}>JSON</Link>
+        </span>
+      </nav>
       <div className="card">
         <div className="receipt-head">
           <div>
@@ -63,12 +70,17 @@ export default async function Receipt({ params, searchParams }: { params: Promis
             ) : (
               <span className="pill warning">✓ Genuine photo · {seenCount} of {r.vision.itemChecks.length} products fully visible</span>
             )}
+            {r.capture?.inApp && <span className="pill success" style={{ marginLeft: 6 }}>📸 Taken live in the app</span>}
+            {r.vision.slip?.matchesOrder && <span className="pill success" style={{ marginLeft: 6 }}>🧾 Packing slip matches order</span>}
             <h1 style={{ fontSize: 26, margin: "10px 0 4px" }}>{d.orgName}</h1>
             <p className="sub" style={{ margin: 0 }}>
               {d.city} · {itemCount(allItems(d))} items from {d.donations.length} donors · arrived {fmtDate(d.arrivesAt)} · checked {d.updatedAt ? fmtDate(d.updatedAt) : ""}
             </p>
           </div>
-          <ShareButton path={path} />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <ShareButton path={path} />
+            <a className="btn subtle" href={`/api/photo/${d.id}?download=1`}>Download photo</a>
+          </div>
         </div>
 
         <div className="photo-pair">
@@ -112,6 +124,23 @@ export default async function Receipt({ params, searchParams }: { params: Promis
         </section>
       </div>
 
+      {r.vision.slip?.visible && r.vision.slip.lines.length > 0 && (
+        <section className="card" style={{ marginTop: 20 }}>
+          <h2>Packing slip in the photo</h2>
+          <p className="sub" style={{ marginTop: 0 }}>Order {r.vision.slip.orderCode ?? "not readable"}{r.vision.slip.matchesOrder ? ", matches this delivery" : ""}</p>
+          <ul className="checks">
+            {r.vision.slip.lines.map((l, i) => <li key={i}><span className="ok-i">·</span>{l.quantity ?? "?"} × {l.name}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {(d.questions ?? []).some((q) => q.answer) || donor ? (
+        <section className="card" style={{ marginTop: 20 }}>
+          <h2>Questions and answers</h2>
+          <Questions delivery={d} as={donor ? { donorId: donor.donorId } : "public"} />
+        </section>
+      ) : null}
+
       <section className="card" style={{ marginTop: 20 }}>
         <h2>Receipt details</h2>
         <dl className="kv">
@@ -119,6 +148,8 @@ export default async function Receipt({ params, searchParams }: { params: Promis
           <dt>Order</dt><dd>{d.orderCode} · {d.supplier}</dd>
           <dt>Checked at</dt><dd>{d.updatedAt}</dd>
           <dt>Score</dt><dd>{r.decision.score}/100</dd>
+          <dt>Cost of this check</dt>
+          <dd>{r.cost ? `${r.cost.tokens.toLocaleString("en-US")} tokens${r.cost.usd !== null ? ` · $${r.cost.usd.toFixed(4)}` : ""}` : "n/a"}</dd>
           <dt>Photo SHA-256</dt><dd>{d.photoSha256 ?? "n/a"}</dd>
           <dt>Photo fingerprint</dt><dd>{r.integrity.hash} (dHash, catches reuse)</dd>
           <dt>Models</dt>

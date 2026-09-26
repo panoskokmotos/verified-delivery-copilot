@@ -14,16 +14,19 @@ import type { Delivery } from "./types";
 type State = {
   month: string; // YYYY-MM the counter below belongs to
   verifications: number; // saved verifications this month
+  writes?: number; // every storage write this month: photos, state, questions, answers
   hashes: Seen[];
   deliveries: Record<string, Delivery>;
 };
 
 const MAX_PER_MONTH = Number(process.env.MAX_VERIFICATIONS_PER_MONTH || 300);
+// The Hobby plan blocks the store for 30 days past 2,000 writes. Stop well before, leaving room for the dashboard.
+const MAX_WRITES = Number(process.env.MAX_WRITES_PER_MONTH || 1500);
 const STATE = "state.json";
 const LOCAL = process.env.VDC_STORE_DIR || path.join(os.tmpdir(), "vdc-store");
 const useBlob = () => Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
-const empty = (): State => ({ month: thisMonth(), verifications: 0, hashes: [], deliveries: {} });
+const empty = (): State => ({ month: thisMonth(), verifications: 0, writes: 0, hashes: [], deliveries: {} });
 
 async function readState(): Promise<{ state: State; etag?: string }> {
   if (useBlob()) {
@@ -71,8 +74,29 @@ export async function getDelivery(id: string): Promise<Delivery | null> {
 /** Fingerprints for the reused-photo check, and whether this month's budget has room. */
 export async function preflight(): Promise<{ seen: Seen[]; budgetLeft: number }> {
   const { state } = await readState();
-  const used = state.month === thisMonth() ? state.verifications : 0;
-  return { seen: state.hashes, budgetLeft: MAX_PER_MONTH - used };
+  const fresh = state.month !== thisMonth();
+  const checksLeft = MAX_PER_MONTH - (fresh ? 0 : state.verifications);
+  const writesLeft = Math.floor((MAX_WRITES - (fresh ? 0 : state.writes ?? state.verifications * 2)) / 2); // a verification is 2 writes
+  return { seen: state.hashes, budgetLeft: Math.min(checksLeft, writesLeft) };
+}
+
+/** Changes one delivery in the state file (one write). Throws when this month's write budget is spent. */
+export async function updateDelivery(id: string, change: (d: Delivery) => Delivery) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { state, etag } = await readState();
+    if (state.month !== thisMonth()) Object.assign(state, { month: thisMonth(), verifications: 0, writes: 0 });
+    if ((state.writes ?? 0) >= MAX_WRITES) throw new Error("This month's storage limit is reached. It resets on the 1st.");
+    const current = state.deliveries[id] ?? SEED.find((d) => d.id === id);
+    if (!current) throw new Error("Unknown delivery");
+    state.deliveries[id] = change(current);
+    state.writes = (state.writes ?? 0) + 1;
+    try {
+      return await writeState(state, etag);
+    } catch (err) {
+      if (!(err instanceof BlobPreconditionFailedError)) throw err;
+    }
+  }
+  throw new Error("Could not save. Please try again.");
 }
 
 /** Saves a finished verification: the photo, then the delivery and its fingerprint in one state write. */
@@ -80,8 +104,9 @@ export async function saveVerification(delivery: Delivery, photo: Buffer) {
   await savePhoto(delivery.id, photo);
   for (let attempt = 0; attempt < 3; attempt++) {
     const { state, etag } = await readState();
-    if (state.month !== thisMonth()) Object.assign(state, { month: thisMonth(), verifications: 0 });
+    if (state.month !== thisMonth()) Object.assign(state, { month: thisMonth(), verifications: 0, writes: 0 });
     state.verifications++;
+    state.writes = (state.writes ?? 0) + 2; // the photo and this state file
     state.deliveries[delivery.id] = delivery;
     const hash = delivery.result?.integrity.hash;
     if (hash) {

@@ -160,7 +160,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
 
 /* a donor's own items next to the photo */
 .yours { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-.yours li { display: grid; grid-template-columns: 30px 1fr 30px; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r); background: var(--bg); }
+.yours li { display: grid; grid-template-columns: 30px 44px 1fr 30px; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r); background: var(--bg); }
 .yours .num { width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; }
 .yours .mark { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; background: var(--warning); }
 .yours .seen .mark { background: var(--success); }
@@ -190,3 +190,24 @@ textarea.note-input { min-height: 110px; margin-top: 6px; }
 .notice ul { margin: 6px 0 0; padding-left: 18px; }
 .check { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; color: var(--ink); }
 .check input { width: 16px; height: 16px; accent-color: var(--primary); }
+.camera { margin-top: 14px; }
+.viewfinder { width: 100%; border-radius: var(--r); display: block; background: #111; max-height: 420px; object-fit: contain; }
+.shot-info { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.alt { display: flex; gap: 16px; margin-top: 10px; }
+.link { background: none; border: 0; padding: 0; color: var(--primary); font: 600 13px var(--font-body), sans-serif; cursor: pointer; text-decoration: underline; }
+.link:disabled { opacity: .5; }
+.badge-live { display: inline-flex; gap: 4px; align-items: center; }
+.qa { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.qa li { padding: 12px 14px; border-radius: var(--r); background: var(--bg); }
+.qa .q { font-weight: 600; }
+.qa .a { margin-top: 6px; padding-left: 10px; border-left: 3px solid var(--secondary); }
+.ask { display: flex; gap: 8px; margin-top: 10px; }
+.ask input { flex: 1; }
+.cost { font-size: 12px; color: var(--muted); margin-top: 10px; }
+.dot.skipped { background: var(--muted); }
+.drop.over { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, white); }
+.crumbs { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.crumbs .back { margin-bottom: 0; }
+.product .img img { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
+.yours .thumb { width: 44px; height: 44px; border-radius: 10px; background: var(--soft-primary); display: grid; place-items: center; font-size: 22px; overflow: hidden; }
+.yours .thumb img { width: 100%; height: 100%; object-fit: contain; }

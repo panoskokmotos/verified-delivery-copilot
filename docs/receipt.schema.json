@@ -80,8 +80,9 @@
         "reusedPhoto": { "type": "boolean" },
         "visualAiSigns": { "enum": ["none", "some", "strong"] },
         "cameraTimestamp": { "type": ["string", "null"], "format": "date-time", "description": "Informational. Missing is normal for photos sent over messaging apps." },
-        "photoDistanceKm": { "type": ["number", "null"], "description": "km from the nonprofit's address to the photo's GPS. Coordinates are never published." },
-        "uploadDistanceKm": { "type": ["number", "null"], "description": "km from the nonprofit's address to the phone at upload, when shared." },
+        "takenInApp": { "type": "boolean", "description": "Shot with the app's live camera, not picked from the gallery (reported by the app)." },
+        "locationSharedWithPlatform": { "type": "boolean", "description": "The phone's location was shared with the platform at capture. Never published." },
+        "packingSlipMatchesOrder": { "type": ["boolean", "null"], "description": "A readable packing slip shows this delivery's order code. null if no slip was readable." },
         "complete": { "type": "boolean", "description": "Every product fully visible." },
         "confirmedByNonprofit": { "type": "boolean" }
       }

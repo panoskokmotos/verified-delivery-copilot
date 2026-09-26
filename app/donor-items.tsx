@@ -1,5 +1,6 @@
 import { donorShare } from "../lib/items";
 import type { Delivery } from "../lib/types";
+import { productIcon } from "./labels";
 
 /**
  * A donor's own items next to the delivery photo: numbered, where each sits in the photo, and how
@@ -13,6 +14,8 @@ export function DonorItems({ d, donorId }: { d: Delivery; donorId: string }) {
       {share.map(({ item, check, total }, n) => (
         <li key={n} className={check?.status ?? "unclear"}>
           <span className="num">{n + 1}</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <span className="thumb">{item.image ? <img src={item.image} alt="" /> : productIcon(item.name)}</span>
           <div>
             <div className="title">{item.name}</div>
             <div className="sub">

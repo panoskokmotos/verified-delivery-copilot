@@ -58,6 +58,7 @@ export async function POST(req: Request) {
         original: meta instanceof File ? Buffer.from(await meta.arrayBuffer()) : raw,
         seen,
         orgAt: delivery.location,
+        orderCode: delivery.orderCode,
         uploadAt: parseLatLon(form.get("uploadLat"), form.get("uploadLon")),
       }
     : {
@@ -79,6 +80,8 @@ export async function POST(req: Request) {
       const emit = (e: StepEvent) => controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
       try {
         const result = await runVerification(input, emit);
+        // How the photo was taken. Part of the signed result, so it can't change between check and send.
+        result.capture = { inApp: form.get("capture") === "camera", location: input.uploadAt ?? null };
         let confirmToken: string | undefined;
         if (delivery) {
           // A check is a preview: the nonprofit sees it and confirms before anything is saved.

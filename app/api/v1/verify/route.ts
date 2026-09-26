@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       quantity: Math.max(1, Math.floor(Number(i.quantity) || 1)),
       unit: String(i.unit || "units").slice(0, 40),
       price: i.price === undefined ? undefined : Number(i.price),
+      image: typeof i.image === "string" && /^https:\/\//.test(i.image) ? i.image.slice(0, 500) : undefined,
     }));
     knownHashes = JSON.parse(String(form.get("knownHashes") || "[]"));
   } catch {
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
         original: raw,
         seen: knownHashes.slice(-5000).map((h) => ({ hash: String(h.hash), id: String(h.id), at: "" })),
         orgAt: parseLatLon(form.get("orgLat"), form.get("orgLon")),
+        orderCode: String(form.get("orderCode") || "") || undefined,
         uploadAt: parseLatLon(form.get("uploadLat"), form.get("uploadLon")),
       },
       () => {},
@@ -77,10 +79,13 @@ export async function POST(req: Request) {
         reusedPhotoOf: i.duplicateOf,
         visualAiSigns: v.aiSuspicion,
         cameraTimestamp: i.photoTakenAt,
+        // For the platform's admin only. Don't publish: these place the nonprofit.
         photoDistanceKm: i.location.photoKm,
         uploadDistanceKm: i.location.uploadKm,
       },
       notes: i.notes,
+      packingSlip: v.slip ?? null,
+      cost: result.cost ?? null,
       photoHash: i.hash, // store this and send it back in knownHashes next time
       thankYouDraft: result.impact.donorMessage || null,
       models: result.models ?? null,

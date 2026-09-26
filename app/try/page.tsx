@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useState } from "react";
+import { Camera, type Shot } from "../camera";
 import { StepList, Verdict, useVerify } from "../verify-ui";
 
 const SAMPLES = [
@@ -12,16 +13,10 @@ const SAMPLES = [
 // Open tool: check any photo against any request. Nothing is saved.
 export default function Try() {
   const [form, setForm] = useState({ requestText: "", orgName: "", city: "", donorName: "" });
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [shot, setShot] = useState<Shot | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const { steps, result, error, busy, run } = useVerify();
-
-  function pick(f: File | null) {
-    setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
-  }
+  const onShot = useCallback((s: Shot | null) => setShot(s), []);
 
   return (
     <main>
@@ -53,11 +48,8 @@ export default function Try() {
           </div>
           <label htmlFor="donor">Donor</label>
           <input id="donor" type="text" value={form.donorName} onChange={(e) => setForm({ ...form, donorName: e.target.value })} />
-          <div className="drop" onClick={() => inputRef.current?.click()}>
-            {preview ? <img src={preview} alt="Delivery photo" /> : "Tap to add the delivery photo (JPG, PNG, WEBP)"}
-          </div>
-          <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => pick(e.target.files?.[0] ?? null)} />
-          <button className="btn primary block" disabled={busy} onClick={() => (file ? (setLocalError(null), run(file, form)) : setLocalError("Add a delivery photo first."))}>
+          <Camera onShot={onShot} disabled={busy} />
+          <button className="btn primary block" disabled={busy} onClick={() => (shot ? (setLocalError(null), run(shot, form)) : setLocalError("Add a delivery photo first."))}>
             {busy ? "Verifying…" : "Verify delivery"}
           </button>
           {(localError || error) && <p className="err">{localError || error}</p>}
