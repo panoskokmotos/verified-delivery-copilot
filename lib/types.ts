@@ -1,18 +1,31 @@
-export type Need = {
-  item: string;
+/** One product line the donor gave, e.g. 4 x "Purina Dog Chow dry dog food, 30 lb bag". */
+export type NeedItem = {
+  name: string;
   quantity: number;
   unit: string;
+};
+
+export type Need = {
+  items: NeedItem[];
   condition: "new" | "gently_used" | "any";
   category: string;
   deadline: string | null;
   mustHave: string[];
 };
 
+/** What the photo shows for one line of the gift. */
+export type ItemCheck = {
+  name: string;
+  expected: number;
+  seen: number | null; // null when the count can't be read from the photo
+  status: "seen" | "partial" | "missing" | "unclear";
+  note: string; // one short sentence, e.g. "4 bags visible, brand label readable on 3"
+};
+
 export type VisionCheck = {
   itemsSeen: string[];
-  matchesNeed: boolean;
-  estimatedCount: number | null;
-  countConfidence: "low" | "medium" | "high";
+  itemChecks: ItemCheck[];
+  aiSuspicion: "none" | "some" | "strong"; // visual signs the image itself is AI-generated
   condition: "new" | "used" | "damaged" | "unclear";
   deliveryContext: string;
   concerns: string[];
@@ -66,4 +79,19 @@ export type VerificationResult = {
   org: OrgCheck;
   decision: Decision;
   impact: ImpactNote;
+};
+
+/** A donation waiting for, or holding, its delivery proof. */
+export type Delivery = {
+  id: string;
+  orgName: string;
+  city: string;
+  cause: string;
+  donorName: string;
+  requestText: string; // what the nonprofit asked for, in its words
+  items: NeedItem[]; // what the donor gave
+  pledgedAt: string;
+  status: "awaiting_photo" | Decision["verdict"];
+  updatedAt?: string;
+  result?: VerificationResult;
 };

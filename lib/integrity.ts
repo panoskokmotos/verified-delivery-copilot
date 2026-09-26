@@ -1,28 +1,9 @@
 import sharp from "sharp";
 import exifr from "exifr";
-import { promises as fs } from "fs";
-import path from "path";
-import os from "os";
-import type { IntegrityCheck, Need } from "./types";
+import type { IntegrityCheck } from "./types";
 
-// Simple file-backed store of photo fingerprints seen before (demo scale).
-const STORE = path.join(os.tmpdir(), "vdc-seen-hashes.json");
-type Seen = { hash: string; id: string; at: string };
-
-async function loadSeen(): Promise<Seen[]> {
-  try {
-    return JSON.parse(await fs.readFile(STORE, "utf8"));
-  } catch {
-    return [];
-  }
-}
-async function saveSeen(list: Seen[]) {
-  try {
-    await fs.writeFile(STORE, JSON.stringify(list.slice(-2000)));
-  } catch {
-    /* read-only FS: skip */
-  }
-}
+/** A fingerprint of an earlier delivery photo, kept in the store. */
+export type Seen = { hash: string; id: string; at: string };
 
 /** 64-bit difference hash. Survives resizing and recompression, so a reused photo still matches. */
 export async function dHash(buf: Buffer): Promise<string> {
@@ -58,14 +39,19 @@ function hamming(a: string, b: string) {
   return n;
 }
 
-export async function checkIntegrity(buf: Buffer, id: string, need: Need, persist = true): Promise<IntegrityCheck> {
+/**
+ * original: the uploaded bytes (or just their metadata header), where camera data and AI labels live.
+ * photo: the normalized image, fingerprinted to catch a photo reused for another delivery.
+ * seen: fingerprints of earlier deliveries. A match on the same delivery id is a retake, not reuse.
+ */
+export async function checkIntegrity(original: Buffer, photo: Buffer, id: string, seen: Seen[]): Promise<IntegrityCheck> {
   const flags: string[] = [];
   let photoTakenAt: string | null = null;
   let gps: IntegrityCheck["gps"] = null;
   let hasExif = false;
 
   try {
-    const meta = await exifr.parse(buf, { gps: true, pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"] });
+    const meta = await exifr.parse(original, { gps: true, pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"] });
     if (meta) {
       hasExif = true;
       const d = meta.DateTimeOriginal || meta.CreateDate;
@@ -83,24 +69,20 @@ export async function checkIntegrity(buf: Buffer, id: string, need: Need, persis
     flags.push("Photo timestamp is in the future. The metadata was likely edited.");
   }
 
-  const aiLabel = readAiLabel(buf);
+  const aiLabel = readAiLabel(original);
   if (aiLabel === "generated") flags.push("The file is labeled as AI-generated (C2PA / IPTC content label).");
   if (aiLabel === "edited") flags.push("The file is labeled as edited with AI (C2PA / IPTC content label).");
 
-  const hash = await dHash(buf);
-  const seen = await loadSeen();
+  const hash = await dHash(photo);
   let duplicateOf: string | null = null;
   let best: number | null = null;
   for (const s of seen) {
+    if (s.id === id) continue;
     const d = hamming(hash, s.hash);
     if (best === null || d < best) best = d;
     if (d <= 6 && !duplicateOf) duplicateOf = s.id;
   }
   if (duplicateOf) flags.push(`Photo matches an earlier delivery (${duplicateOf}). Possible reuse.`);
-  if (persist) {
-    seen.push({ hash, id, at: new Date().toISOString() });
-    await saveSeen(seen);
-  }
 
   return { photoTakenAt, hasExif, aiLabel, gps, hash, duplicateOf, nearDuplicateDistance: best, flags };
 }
