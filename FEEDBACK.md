@@ -6,6 +6,8 @@ Required for the Devpost submission. Log each item when it happens. Format: date
 
 - 2026-09-26, model setup: `/v1/models` returns no modality info, so the only way to find a vision model was to send a test image to each one. Fix: add `input_modalities` to the models response.
 
+- 2026-09-26, vision latency: `google/gemma-3-27b-it` took 59s, 16s and 2.7s on the same small image within a few minutes. `openbmb/MiniCPM-V-4_5` took 0.8s. The 59s call nearly hit our 60s route limit. Fix: publish latency or queue status per model.
+
 ## Nebius AI Cloud
 
 ## NVIDIA Nemotron 3 Nano Omni (vision)

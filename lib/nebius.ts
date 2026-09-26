@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 export const models = {
-  vision: process.env.NEMOTRON_VISION_MODEL || "nvidia/Nemotron-3-Nano-Omni",
+  vision: process.env.NEMOTRON_VISION_MODEL || "google/gemma-3-27b-it",
   reasoning: process.env.NEMOTRON_REASONING_MODEL || "nvidia/nemotron-3-super-120b-a12b",
   writer: process.env.NEMOTRON_WRITER_MODEL || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
 };
