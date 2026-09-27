@@ -7,7 +7,7 @@ import { parseLatLon } from "../../../lib/geo";
 import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
 import { sendable } from "../../../lib/verified";
-import { AlreadySentError, getDelivery, preflight, recordCalls, saveVerification } from "../../../lib/store";
+import { AlreadySentError, getDelivery, preflight, proofKey, recordCalls, saveVerification } from "../../../lib/store";
 import type { StepEvent, VerificationResult } from "../../../lib/types";
 
 export const runtime = "nodejs";
@@ -32,7 +32,11 @@ export async function POST(req: Request) {
   const deliveryId = String(form.get("deliveryId") || "");
   const delivery = deliveryId ? await getDelivery(deliveryId) : null;
   if (deliveryId && !delivery) return Response.json({ error: "Unknown delivery" }, { status: 404 });
-  if (delivery?.status === "approve") return Response.json({ error: "This delivery is already confirmed" }, { status: 409 });
+  // A sent proof can be checked again only as a replacement of the photo the nonprofit is looking at.
+  const replacing = delivery?.status === "approve";
+  if (replacing && String(form.get("replaces") || "") !== proofKey(delivery!)) {
+    return Response.json({ error: "This delivery's proof was already sent. Reload to see it, then replace it." }, { status: 409 });
+  }
 
   const { seen, budgetLeft, callsLeftToday } = await preflight();
   // The free "try any photo" page keeps a reserve back, so it can never lock nonprofits out of their deliveries.

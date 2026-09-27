@@ -78,6 +78,13 @@ export default async function Receipt({ params, searchParams }: { params: Promis
               <span className="pill warning">✓ Genuine photo · {seenCount} of {r.vision.itemChecks.length} products fully visible</span>
             )}
             {r.capture?.inApp && <span className="pill success" style={{ marginLeft: 6 }}>📸 Taken live in the app</span>}
+            {d.replaced?.length ? (
+              <p className="replaced">
+                🔁 The nonprofit replaced an earlier photo on {fmtDate(d.updatedAt ?? "")}
+                {d.replaced.length > 1 ? ` (${d.replaced.length} replacements so far)` : ""}. The earlier photo{" "}
+                {d.replaced.at(-1)!.passedCheck ? "had passed" : "had not passed"} the check.
+              </p>
+            ) : null}
             {r.vision.slip?.matchesOrder && <span className="pill success" style={{ marginLeft: 6 }}>🧾 Packing slip matches order</span>}
             <h1 style={{ fontSize: 26, margin: "10px 0 4px" }}>{d.orgName}</h1>
             <p className="sub" style={{ margin: 0 }}>

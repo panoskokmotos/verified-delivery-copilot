@@ -74,6 +74,13 @@ export default async function DonorGifts({ params }: { params: Promise<{ donorId
               <Timeline d={d} />
               {proven && (
                 <>
+                  {d.replaced?.length ? (
+                    <p className="replaced">
+                      🔁 The nonprofit replaced an earlier photo on {fmtDate(d.updatedAt ?? "")}
+                      {d.replaced.length > 1 ? ` (${d.replaced.length} replacements so far)` : ""}. The earlier photo{" "}
+                      {d.replaced.at(-1)!.passedCheck ? "had passed" : "had not passed"} the check.
+                    </p>
+                  ) : null}
                   <div className="photo-pair">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={photoUrl(d)} alt={`Delivery photo at ${d.orgName}`} />

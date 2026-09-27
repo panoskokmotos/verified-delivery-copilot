@@ -114,7 +114,9 @@ export type Delivery = {
   thankYouNote?: string; // written by the nonprofit when it shares the proof
   location?: { lat: number; lon: number }; // the nonprofit's address, from its verified profile
   photoSha256?: string;
-  photoKey?: string; // storage key of the proof photo; a new one per check, so an old photo never shows with a new result // of the stored photo, so a receipt can be checked against it later
+  photoKey?: string;
+  // Earlier proofs this one replaced, newest last. Donors see that and when the photo was replaced.
+  replaced?: { at: string; photoKey?: string; passedCheck: boolean }[]; // storage key of the proof photo; a new one per check, so an old photo never shows with a new result // of the stored photo, so a receipt can be checked against it later
   questions?: Question[]; // donors ask, the nonprofit answers
 };
 

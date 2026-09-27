@@ -53,6 +53,7 @@ export function useVerify() {
     setResult(null);
     setSteps({});
     setSent(null);
+    setConfirmed(false); // a new check (e.g. a replacement photo) can be sent again
     try {
       setSent({ photo: up.photo, name: up.name });
       const body = new FormData();
@@ -97,7 +98,7 @@ export function useVerify() {
   }
 
   /** Saves an approved check so the donor sees it. Only possible when the check returned a token. */
-  async function confirm(deliveryId: string, note = "") {
+  async function confirm(deliveryId: string, note = "", replaces?: string) {
     if (!result || !sent?.token) return;
     setBusy(true);
     setError(null);
@@ -107,6 +108,7 @@ export function useVerify() {
       body.append("result", JSON.stringify(result));
       body.append("confirmToken", sent.token);
       body.append("note", note);
+      if (replaces) body.append("replaces", replaces);
       body.append("photo", sent.photo, sent.name);
       const res = await fetch("/api/confirm", { method: "POST", body });
       const j = await res.json().catch(() => ({}));

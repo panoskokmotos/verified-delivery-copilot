@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { allItems } from "../../../lib/items";
 import { verified } from "../../../lib/verified";
@@ -15,8 +16,13 @@ export function Upload({ delivery }: { delivery: Delivery }) {
   const [shot, setShot] = useState<Shot | null>(null);
   const [note, setNote] = useState("");
   const { steps, result, error, busy, run, confirm, canConfirm, confirmed } = useVerify();
+  const router = useRouter();
+  // As on Givelink, a sent proof can be replaced. Donors see that it was, and when.
+  const [replacing, setReplacing] = useState(false);
+  const sent = delivery.status === "approve";
+  const replaces = sent ? (delivery.photoKey ?? delivery.id) : undefined;
   const last = result ?? delivery.result;
-  const done = confirmed || delivery.status === "approve";
+  const done = confirmed || (sent && !replacing);
   const checking = busy && !result;
   const n = delivery.donations.length;
   const onShot = useCallback((s: Shot | null) => setShot(s), []);
@@ -26,7 +32,14 @@ export function Upload({ delivery }: { delivery: Delivery }) {
     if (canConfirm && result?.impact.donorMessage) setNote(result.impact.donorMessage);
   }, [canConfirm, result]);
 
-  const check = () => shot && run(shot, { deliveryId: delivery.id });
+  const check = () => shot && run(shot, { deliveryId: delivery.id, ...(replacing && replaces ? { replaces } : {}) });
+
+  // After sending, reload the delivery so the page shows the new photo and its record.
+  useEffect(() => {
+    if (!confirmed) return;
+    setReplacing(false);
+    router.refresh();
+  }, [confirmed, router]);
 
   return (
     <div className="grid">
@@ -44,10 +57,19 @@ export function Upload({ delivery }: { delivery: Delivery }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="viewfinder" style={{ marginTop: 14 }} src={photoUrl(delivery)} alt="Delivery proof" />
             <p className="ok">Proof shared with {n} donors. Each sees this photo and their own items, checked.</p>
+            {!busy && (
+              <button className="btn subtle block" onClick={() => setReplacing(true)}>Replace photo</button>
+            )}
           </>
         ) : (
           <>
-            <h2 style={{ marginTop: 18 }}>Upload delivery proof</h2>
+            <h2 style={{ marginTop: 18 }}>{replacing ? "Replace the delivery photo" : "Upload delivery proof"}</h2>
+            {replacing && (
+              <p className="sub">
+                The new photo is checked like the first one. Donors will see it with a note that it replaced an earlier photo.{" "}
+                <button className="link" onClick={() => setReplacing(false)}>Keep the current photo</button>
+              </p>
+            )}
             <Camera onShot={onShot} disabled={busy} />
             {shot && (!result || !canConfirm) && (
               <button className="btn primary block" disabled={busy} onClick={check}>
@@ -80,11 +102,13 @@ export function Upload({ delivery }: { delivery: Delivery }) {
             <label htmlFor="note">Thank-you note to all {n} donors</label>
             <textarea id="note" className="note-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What do these items unlock for your work?" />
             <p className="sub">We drafted this from your photo. Make it yours.</p>
-            <button className="btn gradient block" disabled={busy || !note.trim()} onClick={() => confirm(delivery.id, note)}>
+            <button className="btn gradient block" disabled={busy || !note.trim()} onClick={() => confirm(delivery.id, note, replacing ? replaces : undefined)}>
               {busy
                 ? "Sending…"
                 : result && !verified(result)
                   ? `Send anyway, marked Not verified`
+                  : replacing
+                    ? `Replace the photo for all ${n} donors`
                   : result?.decision.verdict === "review"
                     ? `Send as is to all ${n} donors`
                     : `Send proof to all ${n} donors`}

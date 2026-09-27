@@ -21,7 +21,7 @@ export type Receipt = {
     where: string;
     note: string;
   }[];
-  photo: { sha256: string | null; dhash: string; url: string };
+  photo: { sha256: string | null; dhash: string; url: string; replaced: { at: string; passedCheck: boolean }[] };
   checks: {
     genuine: boolean;
     aiContentLabel: "generated" | "edited" | null;
@@ -70,7 +70,12 @@ export function toReceipt(d: Delivery, origin: string): Receipt | null {
     shipment: { supplier: d.supplier, orderCode: d.orderCode, arrivedAt: d.arrivesAt },
     donations: d.donations.map((x, i) => ({ donor: `donor-${i + 1}`, items: x.items.map(({ name, quantity }) => ({ name, quantity })) })),
     items: r.vision.itemChecks.map((c) => ({ name: c.name, expected: c.expected, seen: c.seen, status: c.status, where: c.where, note: c.note })),
-    photo: { sha256: d.photoSha256 ?? null, dhash: r.integrity.hash, url: `${origin}/api/photo/${d.id}` },
+    photo: {
+      sha256: d.photoSha256 ?? null,
+      dhash: r.integrity.hash,
+      url: `${origin}/api/photo/${d.id}`,
+      replaced: (d.replaced ?? []).map((x) => ({ at: x.at, passedCheck: x.passedCheck })), // earlier proofs this one replaced
+    },
     checks: {
       genuine: genuine(r),
       aiContentLabel: r.integrity.aiLabel,

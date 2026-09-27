@@ -68,7 +68,12 @@
       "properties": {
         "sha256": { "type": ["string", "null"], "description": "SHA-256 of the stored photo. Recompute it to prove the photo wasn't swapped." },
         "dhash": { "type": "string", "description": "64-bit difference hash, used to catch the same photo reused for another delivery." },
-        "url": { "type": "string", "format": "uri" }
+        "url": { "type": "string", "format": "uri" },
+        "replaced": {
+          "type": "array",
+          "description": "Earlier proofs of this delivery that the nonprofit replaced, oldest first.",
+          "items": { "type": "object", "properties": { "at": { "type": "string" }, "passedCheck": { "type": "boolean" } } }
+        }
       }
     },
     "checks": {

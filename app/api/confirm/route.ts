@@ -27,7 +27,9 @@ export async function POST(req: Request) {
   }
   const delivery = await getDelivery(deliveryId);
   if (!delivery) return Response.json({ error: "Unknown delivery" }, { status: 404 });
-  if (delivery.status === "approve") return Response.json({ error: "This delivery is already confirmed" }, { status: 409 });
+  // Replacing a sent proof names the photo it replaces; saveVerification checks it is still the current one.
+  const replaces = String(form.get("replaces") || "") || undefined;
+  if (delivery.status === "approve" && !replaces) return Response.json({ error: "This delivery is already confirmed" }, { status: 409 });
   if ((await preflight()).budgetLeft <= 0) return Response.json({ error: "This month's verification limit is reached. It resets on the 1st." }, { status: 429 });
 
   const result = JSON.parse(resultJson) as VerificationResult;
@@ -36,6 +38,7 @@ export async function POST(req: Request) {
     await saveVerification(
       { ...delivery, status: "approve", updatedAt: new Date().toISOString(), result, thankYouNote: note, photoSha256: sha256(normalized) },
       normalized,
+      { replaces },
     );
   } catch (err) {
     if (err instanceof AlreadySentError) return Response.json({ error: err.message }, { status: 409 });

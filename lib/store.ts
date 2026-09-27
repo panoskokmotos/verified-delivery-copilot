@@ -6,6 +6,7 @@ import { SEED } from "./demo";
 import type { Seen } from "./integrity";
 import { MAX_CALLS_PER_DAY } from "./nebius";
 import { sha256 } from "./sign";
+import { verified } from "./verified";
 import type { Delivery } from "./types";
 
 // Storage: Vercel Blob (private store) in production, a local folder in dev.
@@ -159,16 +160,25 @@ export async function updateDelivery(id: string, change: (d: Delivery) => Delive
   });
 }
 
+/** The storage key of a delivery's current proof photo. Older records stored it under the delivery id. */
+export const proofKey = (d: Delivery) => d.photoKey ?? d.id;
+
 /**
  * Saves a finished check: the photo under its own key, then the delivery and its fingerprint in one
- * state write. Refuses (AlreadySentError) if the delivery's proof was sent meanwhile, so a second
- * check can never overwrite a proof donors already have.
+ * state write. A sent proof is only ever replaced on purpose: `replaces` must name the proof photo the
+ * nonprofit saw. Otherwise (a second check still running, two people sending at once) it refuses with
+ * AlreadySentError, so nobody overwrites a proof donors already have by accident.
  */
-export async function saveVerification(delivery: Delivery, photo: Buffer) {
+export async function saveVerification(delivery: Delivery, photo: Buffer, { replaces }: { replaces?: string } = {}) {
   const photoKey = `${delivery.id}-${sha256(photo).slice(0, 12)}`;
   await savePhoto(photoKey, photo);
   await mutateState((state) => {
-    if (current(state, delivery.id)?.status === "approve") throw new AlreadySentError();
+    const before = current(state, delivery.id);
+    if (before?.status === "approve") {
+      if (!replaces || replaces !== proofKey(before)) throw new AlreadySentError();
+      const entry = { at: before.updatedAt ?? "", photoKey: before.photoKey, passedCheck: Boolean(before.result && verified(before.result)) };
+      delivery = { ...delivery, replaced: [...(before.replaced ?? []), entry] };
+    }
     state.verifications++;
     state.writes = (state.writes ?? 0) + 2; // the photo and this state file
     state.deliveries[delivery.id] = { ...delivery, photoKey };
@@ -190,7 +200,7 @@ async function savePhoto(key: string, photo: Buffer) {
 
 /** The photo of a delivery's current proof. Older records stored it under the delivery id. */
 export async function readPhoto(d: Delivery): Promise<Buffer | null> {
-  const key = d.photoKey ?? d.id;
+  const key = proofKey(d);
   if (useBlob()) {
     const r = await get(`photos/${key}.jpg`, { access: "private", useCache: false });
     if (!r || r.statusCode !== 200) return null;

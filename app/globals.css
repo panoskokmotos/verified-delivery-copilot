@@ -275,3 +275,4 @@ h1, h2, .title { overflow-wrap: anywhere; }
 .timeline .failed { color: var(--danger); }
 .muted .mark { background: var(--muted) !important; }
 .muted .count { color: var(--muted) !important; }
+.replaced { margin: 8px 0 0; font-size: 13px; color: #8a5a00; background: var(--soft-warning); padding: 8px 12px; border-radius: 10px; }
