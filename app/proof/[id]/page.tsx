@@ -24,7 +24,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 function passed(d: Delivery): string[] {
   const r = d.result!;
   const seen = r.vision.itemChecks.filter((c) => c.status === "seen").length;
-  const out = [`${seen} of ${r.vision.itemChecks.length} products fully visible and counted against what donors sent.`];
+  // Only a pass gets a tick. Missing items and a failed check are listed under what the photo can't prove.
+  const out = seen > 0 && verified(r) ? [`${seen} of ${r.vision.itemChecks.length} products fully visible and counted against what donors sent.`] : [];
   if (!r.integrity.aiLabel) out.push("No AI-generated content label in the file.");
   if (!r.integrity.duplicateOf) out.push("The photo doesn't match any earlier delivery photo.");
   if (r.vision.aiSuspicion === "none") out.push("No visual signs of an AI-generated image.");

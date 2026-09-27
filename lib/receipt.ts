@@ -46,6 +46,7 @@ export type Receipt = {
 export function receiptLimits(d: Delivery): string[] {
   const r = d.result!;
   const out = r.vision.itemChecks.filter((c) => c.status !== "seen").map((c) => `${c.name}: ${c.note}`);
+  if (!verified(r)) out.unshift(`The photo didn't pass the check, and the nonprofit sent it anyway. ${r.decision.reasons[0] ?? ""}`.trim());
   out.push("Counts come from one photo taken from one angle, so items behind others may be missed.");
   out.push("The photo shows the whole delivery. It can't show which unit came from which donor.");
   if (!r.capture?.inApp) out.push("The photo was picked from the phone's gallery, not taken live in the app, so it could be older or from elsewhere.");

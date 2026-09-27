@@ -92,7 +92,9 @@ export async function POST(req: Request) {
         // How the photo was taken. Part of the signed result, so it can't change between check and send.
         result.capture = { inApp: form.get("capture") === "camera", location: input.uploadAt ?? null };
         if (delivery) {
-          const early = beforeArrival(delivery.arrivesAt, result.capture.inApp ? new Date().toISOString() : result.integrity.photoTakenAt);
+          // Live photos and photos with no camera time were taken by now at the latest, so upload time is the bound.
+          const takenBy = result.capture.inApp || !result.integrity.photoTakenAt ? new Date().toISOString() : result.integrity.photoTakenAt;
+          const early = beforeArrival(delivery.arrivesAt, takenBy);
           if (early) {
             // A photo from before the goods arrived can't show them: never "complete", never verified.
             result.integrity.flags.push(early);
