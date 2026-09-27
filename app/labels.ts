@@ -36,3 +36,7 @@ export const ago = (iso?: string) => {
 };
 export const arrived = (d: Delivery) => d.status !== "shipping";
 export const donorNames = (d: Delivery) => d.donations.map((x) => x.donorName);
+
+/** A delivery's proof photo. The version changes with every new proof, so browsers never show an old one. */
+export const photoUrl = (d: Delivery, download = false) =>
+  `/api/photo/${d.id}?v=${encodeURIComponent(d.photoKey ?? d.updatedAt ?? "")}${download ? "&download=1" : ""}`;

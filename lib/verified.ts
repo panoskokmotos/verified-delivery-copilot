@@ -18,3 +18,10 @@ export function verified(r: VerificationResult): boolean {
 export function sendable(r: VerificationResult): boolean {
   return r.mode === "live" && r.integrity.aiLabel !== "generated" && !r.integrity.duplicateOf;
 }
+
+/** Every product fully visible in the photo. */
+export const complete = (r: VerificationResult) => r.vision.itemChecks.every((c) => c.status === "seen");
+
+/** Nothing proves the photo fake: no AI label, not a reused photo, no strong visual signs of AI. */
+export const genuine = (r: VerificationResult) =>
+  !r.integrity.duplicateOf && r.integrity.aiLabel !== "generated" && r.vision.aiSuspicion !== "strong";

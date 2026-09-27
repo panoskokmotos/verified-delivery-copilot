@@ -1,6 +1,6 @@
 import { allItems, itemValue } from "./items";
 import type { Delivery } from "./types";
-import { verified } from "./verified";
+import { complete, verified } from "./verified";
 
 // Open impact data: what got delivered and proven, by cause. No donor names.
 
@@ -45,8 +45,8 @@ export function computeStats(all: Delivery[]): Stats {
   return {
     deliveries: all.length,
     proofsShared: done.length,
-    complete: done.filter((d) => verified(d.result!) && d.result!.vision.itemChecks.every((c) => c.status === "seen")).length,
-    partial: done.filter((d) => verified(d.result!) && !d.result!.vision.itemChecks.every((c) => c.status === "seen")).length,
+    complete: done.filter((d) => verified(d.result!) && complete(d.result!)).length,
+    partial: done.filter((d) => verified(d.result!) && !complete(d.result!)).length,
     unverified: done.filter((d) => !verified(d.result!)).length,
     fakesStopped: all.filter(fake).length,
     waitingForProof: all.filter((d) => d.status !== "approve" && d.status !== "shipping").length,
@@ -81,7 +81,7 @@ export function statsCsv(all: Delivery[]): string {
       d.status === "approve" ? "proof_shared" : d.status,
       d.donations.length, items.reduce((a, i) => a + i.quantity, 0), itemValue(items),
       shared(d) ? p.units : "", shared(d) ? Math.round(p.value) : "",
-      r ? r.vision.itemChecks.every((c) => c.status === "seen") : "",
+      r ? complete(r) : "",
       shared(d) ? verified(r!) : "",
       r?.integrity.aiLabel ?? "", r ? Boolean(r.integrity.duplicateOf) : "",
       shared(d) ? d.updatedAt : "",

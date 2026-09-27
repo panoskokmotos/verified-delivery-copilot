@@ -1,7 +1,7 @@
 import { notConfigured } from "../../../lib/config";
 import { normalizePhoto } from "../../../lib/photo";
 import { sha256, verifyCheck } from "../../../lib/sign";
-import { getDelivery, preflight, saveVerification } from "../../../lib/store";
+import { AlreadySentError, getDelivery, preflight, saveVerification } from "../../../lib/store";
 import type { VerificationResult } from "../../../lib/types";
 
 export const runtime = "nodejs";
@@ -32,9 +32,14 @@ export async function POST(req: Request) {
 
   const result = JSON.parse(resultJson) as VerificationResult;
   const normalized = await normalizePhoto(raw);
-  await saveVerification(
-    { ...delivery, status: "approve", updatedAt: new Date().toISOString(), result, thankYouNote: note, photoSha256: sha256(normalized) },
-    normalized,
-  );
+  try {
+    await saveVerification(
+      { ...delivery, status: "approve", updatedAt: new Date().toISOString(), result, thankYouNote: note, photoSha256: sha256(normalized) },
+      normalized,
+    );
+  } catch (err) {
+    if (err instanceof AlreadySentError) return Response.json({ error: err.message }, { status: 409 });
+    throw err;
+  }
   return Response.json({ ok: true });
 }

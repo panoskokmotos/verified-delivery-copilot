@@ -4,8 +4,11 @@ import { getDelivery, updateDelivery } from "../../../lib/store";
 export const runtime = "nodejs";
 
 // Donors ask the nonprofit a question about a delivery; the nonprofit answers. Each is one storage write,
-// so questions are capped per donor per delivery.
+// so questions are capped, and they stop well before the month's write budget so checks never run out.
+// The demo has no logins: on a real platform, asking needs the donor's session and answering the nonprofit's.
 const MAX_OPEN_PER_DONOR = 3;
+const MAX_PER_DELIVERY = 20;
+const WRITES_KEPT_FOR_CHECKS = 200;
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
@@ -23,10 +26,17 @@ export async function POST(req: Request) {
     if (body.questionId) {
       const answer = String(body.answer || "").trim().slice(0, 1000);
       if (!answer) return Response.json({ error: "Write an answer first" }, { status: 400 });
-      await updateDelivery(d.id, (x) => ({
-        ...x,
-        questions: (x.questions ?? []).map((q) => (q.id === body.questionId ? { ...q, answer, answeredAt: new Date().toISOString() } : q)),
-      }));
+      const q = d.questions?.find((x) => x.id === body.questionId);
+      if (!q) return Response.json({ error: "Unknown question" }, { status: 404 });
+      if (q.answer) return Response.json({ error: "Already answered" }, { status: 409 });
+      await updateDelivery(
+        d.id,
+        (x) => ({
+          ...x,
+          questions: (x.questions ?? []).map((q) => (q.id === body.questionId ? { ...q, answer, answeredAt: new Date().toISOString() } : q)),
+        }),
+        { reserve: WRITES_KEPT_FOR_CHECKS },
+      );
       return Response.json({ ok: true });
     }
 
@@ -37,15 +47,21 @@ export async function POST(req: Request) {
     if (!text) return Response.json({ error: "Write a question first" }, { status: 400 });
     const open = (d.questions ?? []).filter((q) => q.donorId === donation.donorId && !q.answer).length;
     if (open >= MAX_OPEN_PER_DONOR) return Response.json({ error: "Wait for an answer before asking more" }, { status: 429 });
-    await updateDelivery(d.id, (x) => ({
-      ...x,
-      questions: [
-        ...(x.questions ?? []),
-        { id: randomBytes(6).toString("hex"), donorId: donation.donorId, donorName: donation.donorName, text, askedAt: new Date().toISOString() },
-      ],
-    }));
+    if ((d.questions ?? []).length >= MAX_PER_DELIVERY) return Response.json({ error: "This delivery has reached its question limit" }, { status: 429 });
+    await updateDelivery(
+      d.id,
+      (x) => ({
+        ...x,
+        questions: [
+          ...(x.questions ?? []),
+          { id: randomBytes(6).toString("hex"), donorId: donation.donorId, donorName: donation.donorName, text, askedAt: new Date().toISOString() },
+        ],
+      }),
+      { reserve: WRITES_KEPT_FOR_CHECKS },
+    );
     return Response.json({ ok: true });
   } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 429 });
+    const message = err instanceof Error ? err.message : String(err);
+    return Response.json({ error: message }, { status: /limit/i.test(message) ? 429 : 500 });
   }
 }

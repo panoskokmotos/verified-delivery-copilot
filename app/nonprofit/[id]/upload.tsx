@@ -9,6 +9,7 @@ import { Camera, type Shot } from "../../camera";
 import { Products } from "../../products";
 import { Questions } from "../../questions";
 import { CheckCost, StepList, Verdict, useVerify } from "../../verify-ui";
+import { photoUrl } from "../../labels";
 
 export function Upload({ delivery }: { delivery: Delivery }) {
   const [shot, setShot] = useState<Shot | null>(null);
@@ -41,7 +42,7 @@ export function Upload({ delivery }: { delivery: Delivery }) {
         {done ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="viewfinder" style={{ marginTop: 14 }} src={`/api/photo/${delivery.id}?v=${delivery.updatedAt ?? ""}`} alt="Delivery proof" />
+            <img className="viewfinder" style={{ marginTop: 14 }} src={photoUrl(delivery)} alt="Delivery proof" />
             <p className="ok">Proof shared with {n} donors. Each sees this photo and their own items, checked.</p>
           </>
         ) : (

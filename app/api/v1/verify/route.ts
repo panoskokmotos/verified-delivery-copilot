@@ -1,9 +1,11 @@
 import { timingSafeEqual } from "crypto";
 import { parseLatLon } from "../../../../lib/geo";
 import { normalizePhoto } from "../../../../lib/photo";
+import { CALLS_PER_CHECK } from "../../../../lib/nebius";
 import { runVerification } from "../../../../lib/pipeline";
 import { preflight, recordCalls } from "../../../../lib/store";
 import type { NeedItem } from "../../../../lib/types";
+import { complete, genuine } from "../../../../lib/verified";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
   if (!items.length || items.length > 50) return Response.json({ error: "items: send 1 to 50 products" }, { status: 400 });
 
   const { callsLeftToday } = await preflight();
-  if (callsLeftToday < 4) return Response.json({ error: "Today's model call limit is reached. It resets at midnight UTC." }, { status: 429 });
+  if (callsLeftToday < CALLS_PER_CHECK) return Response.json({ error: "Today's model call limit is reached. It resets at midnight UTC." }, { status: 429 });
   const raw = Buffer.from(await photo.arrayBuffer());
   const deliveryId = String(form.get("deliveryId") || "") || undefined;
   try {
@@ -74,8 +76,8 @@ export async function POST(req: Request) {
     const { vision: v, integrity: i, decision } = result;
     return Response.json({
       verdict: decision.verdict, // approve: complete · review: genuine but partial or uncertain · reject: not genuine or shows none of it
-      genuine: !i.duplicateOf && i.aiLabel !== "generated" && v.aiSuspicion !== "strong",
-      complete: v.itemChecks.every((c) => c.status === "seen"),
+      genuine: genuine(result),
+      complete: complete(result),
       score: decision.score,
       reasons: decision.reasons,
       nextAction: decision.nextAction,

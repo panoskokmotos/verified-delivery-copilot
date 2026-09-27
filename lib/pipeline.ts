@@ -199,7 +199,7 @@ async function decide(
 // the nonprofit edits it before sending. Nothing is drafted for a rejected photo.
 async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: Decision, usage: Usage[]): Promise<ImpactNote> {
   if (decision.verdict === "reject") {
-    return { donorMessage: "", publicCaption: "" };
+    return { donorMessage: "" };
   }
   if (!isLive()) return demoImpact(input, need);
   return askJson<ImpactNote>({
@@ -209,7 +209,7 @@ async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: 
     system:
       "Draft the thank-you note a nonprofit sends to the donors of a delivery that just arrived, in the nonprofit's voice (we). " +
       "Specific and warm: name the items and what they unlock for the people or animals served. No clichés, no exclamation marks, no em dashes. " +
-      "donorMessage: 2-3 sentences addressed to all donors of this delivery. publicCaption: one sentence for a public impact feed, no donor names.",
+      "donorMessage: 2-3 sentences addressed to all donors of this delivery.",
     user: JSON.stringify({ org: input.orgName, city: input.city, donors: input.donorNames, items: need.items, context: v.deliveryContext }),
   });
 }
@@ -248,7 +248,7 @@ export async function runVerification(input: VerifyInput, emit: Emit): Promise<V
         nextAction: "Take a new photo of the delivered items with the app camera.",
         model: "rules",
       },
-      impact: { donorMessage: "", publicCaption: "" },
+      impact: { donorMessage: "" },
     });
   }
 
@@ -307,6 +307,5 @@ function demoImpact(input: VerifyInput, need: Need): ImpactNote {
   const list = need.items.map(itemLine).join(", ");
   return {
     donorMessage: `Thank you. Your gift (${list}) arrived at ${input.orgName || "our place"} and is already in use.`,
-    publicCaption: `${list} delivered to ${input.orgName || "a verified nonprofit"} in ${input.city || "their city"}, photo-confirmed.`,
   };
 }

@@ -4,9 +4,9 @@ import { DONORS } from "../../../lib/demo";
 import { listDeliveries } from "../../../lib/store";
 import type { Delivery } from "../../../lib/types";
 import { DonorItems } from "../../donor-items";
-import { DONOR_STATUS, fmtDate } from "../../labels";
+import { DONOR_STATUS, fmtDate, photoUrl } from "../../labels";
 import { Questions } from "../../questions";
-import { verified } from "../../../lib/verified";
+import { complete, verified } from "../../../lib/verified";
 import { ShareButton } from "../../share-button";
 
 export const dynamic = "force-dynamic";
@@ -63,10 +63,10 @@ export default async function DonorGifts({ params }: { params: Promise<{ donorId
                   <div className="title">{mine.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}</div>
                   <div className="sub">To {d.orgName}, {d.city} · part of a delivery from {d.donations.length} donors</div>
                 </div>
-                <span className={`pill ${proven ? (d.result!.vision.itemChecks.every((c) => c.status === "seen") ? "success" : "warning") : "pending"}`}>
+                <span className={`pill ${!proven ? "pending" : !verified(d.result!) ? "danger" : complete(d.result!) ? "success" : "warning"}`}>
                   {proven && !verified(d.result!)
                     ? "Delivered · photo not verified"
-                    : proven && !d.result!.vision.itemChecks.every((c) => c.status === "seen")
+                    : proven && !complete(d.result!)
                       ? "Delivered · partly shown in photo"
                       : DONOR_STATUS[d.status]}
                 </span>
@@ -76,8 +76,8 @@ export default async function DonorGifts({ params }: { params: Promise<{ donorId
                 <>
                   <div className="photo-pair">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/photo/${d.id}`} alt={`Delivery photo at ${d.orgName}`} />
-                    <div>
+                    <img src={photoUrl(d)} alt={`Delivery photo at ${d.orgName}`} />
+                    <div className={verified(d.result!) ? "" : "muted"}>
                       <div className="title" style={{ marginBottom: 8 }}>Your items in this photo</div>
                       <DonorItems d={d} donorId={donorId} />
                     </div>
@@ -91,7 +91,7 @@ export default async function DonorGifts({ params }: { params: Promise<{ donorId
                   <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
                     <Link className="btn primary sm" href={`/proof/${d.id}?donor=${donorId}`}>View receipt</Link>
                     <ShareButton path={`/proof/${d.id}?donor=${donorId}`} label="Share this story" />
-                    <a className="btn subtle sm" href={`/api/photo/${d.id}?download=1`}>Download photo</a>
+                    <a className="btn subtle sm" href={photoUrl(d, true)}>Download photo</a>
                   </div>
                   <div className="title" style={{ marginTop: 18 }}>Questions for {d.orgName}</div>
                   <Questions delivery={d} as={{ donorId }} />

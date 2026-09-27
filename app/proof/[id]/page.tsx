@@ -8,7 +8,7 @@ import { receiptLimits } from "../../../lib/receipt";
 import { getDelivery } from "../../../lib/store";
 import type { Delivery } from "../../../lib/types";
 import { DonorItems } from "../../donor-items";
-import { fmtDate } from "../../labels";
+import { fmtDate, photoUrl } from "../../labels";
 import { Questions } from "../../questions";
 import { ShareButton } from "../../share-button";
 import { ItemChecks } from "../../verify-ui";
@@ -86,14 +86,15 @@ export default async function Receipt({ params, searchParams }: { params: Promis
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <ShareButton path={path} />
-            <a className="btn subtle" href={`/api/photo/${d.id}?download=1`}>Download photo</a>
+            <a className="btn subtle" href={photoUrl(d, true)}>Download photo</a>
           </div>
         </div>
 
         <div className="photo-pair">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/photo/${d.id}`} alt={`Delivery photo at ${d.orgName}`} />
-          <div>
+          <img src={photoUrl(d)} alt={`Delivery photo at ${d.orgName}`} />
+          {/* On a photo that failed the check, per-item ticks are the model's reading, not a verification: grey them. */}
+          <div className={verified(r) ? "" : "muted"}>
             {donor ? (
               <>
                 <div className="title" style={{ marginBottom: 8 }}>{donor.donorName}'s items in this photo</div>

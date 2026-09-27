@@ -1,12 +1,13 @@
 import { notConfigured } from "../../../lib/config";
-import { isLive } from "../../../lib/nebius";
+import { beforeArrival } from "../../../lib/integrity";
+import { CALLS_PER_CHECK, isLive } from "../../../lib/nebius";
 import { normalizePhoto } from "../../../lib/photo";
 import { runVerification, type VerifyInput } from "../../../lib/pipeline";
 import { parseLatLon } from "../../../lib/geo";
 import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
 import { sendable } from "../../../lib/verified";
-import { getDelivery, preflight, recordCalls, saveVerification } from "../../../lib/store";
+import { AlreadySentError, getDelivery, preflight, recordCalls, saveVerification } from "../../../lib/store";
 import type { StepEvent, VerificationResult } from "../../../lib/types";
 
 export const runtime = "nodejs";
@@ -14,16 +15,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_BYTES = 8 * 1024 * 1024;
-
-/** A warning when the photo was taken more than a day before the delivery was due, else null. */
-function beforeArrival(arrivesAt: string, takenAt: string | null | undefined): string | null {
-  if (!takenAt) return null;
-  const taken = new Date(takenAt);
-  const due = new Date(`${arrivesAt}T00:00:00Z`);
-  if (Number.isNaN(taken.getTime()) || taken.getTime() >= due.getTime() - 86_400_000) return null;
-  const day = (d: Date) => d.toISOString().slice(0, 10);
-  return `The photo was taken on ${day(taken)}, before this delivery was due (${arrivesAt}), so it can't show these items.`;
-}
+const FREE_FORM_RESERVE = 100; // model calls per day kept for real deliveries
 
 export async function POST(req: Request) {
   const unset = notConfigured();
@@ -43,7 +35,9 @@ export async function POST(req: Request) {
   if (delivery?.status === "approve") return Response.json({ error: "This delivery is already confirmed" }, { status: 409 });
 
   const { seen, budgetLeft, callsLeftToday } = await preflight();
-  if (isLive() && callsLeftToday < 4) {
+  // The free "try any photo" page keeps a reserve back, so it can never lock nonprofits out of their deliveries.
+  const reserve = deliveryId ? 0 : FREE_FORM_RESERVE;
+  if (isLive() && callsLeftToday < CALLS_PER_CHECK + reserve) {
     return Response.json({ error: "Today's model call limit is reached. It resets at midnight UTC." }, { status: 429 });
   }
   if (delivery && budgetLeft <= 0) {
@@ -107,7 +101,9 @@ export async function POST(req: Request) {
           // A check is a preview: the nonprofit sees it and confirms before anything is saved.
           // AI-labeled or reused photos are the exception, recorded right away so fakes can't be retried quietly.
           if (result.integrity.aiLabel === "generated" || result.integrity.duplicateOf) {
-            await saveVerification({ ...delivery, status: "reject", updatedAt: new Date().toISOString(), result }, normalized);
+            await saveVerification({ ...delivery, status: "reject", updatedAt: new Date().toISOString(), result }, normalized).catch((err) => {
+              if (!(err instanceof AlreadySentError)) throw err; // a proof sent meanwhile stands; this fake is just not recorded
+            });
           } else if (sendable(result)) {
             // Anything short of a proven fake may be sent. The receipt says whether it passed and which items show.
             confirmToken = signCheck(delivery.id, raw, JSON.stringify(result));

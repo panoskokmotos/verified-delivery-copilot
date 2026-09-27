@@ -98,3 +98,13 @@ export async function checkIntegrity(
 
   return { photoTakenAt, hasExif, aiLabel, location, notes, hash, duplicateOf, nearDuplicateDistance: best, flags };
 }
+
+/** A warning when the photo was taken more than a day before the delivery was due, else null. */
+export function beforeArrival(arrivesAt: string, takenAt: string | null | undefined): string | null {
+  if (!takenAt) return null;
+  const taken = new Date(takenAt);
+  const due = new Date(`${arrivesAt}T00:00:00Z`);
+  if (Number.isNaN(taken.getTime()) || taken.getTime() >= due.getTime() - 86_400_000) return null;
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  return `The photo was taken on ${day(taken)}, before this delivery was due (${arrivesAt}), so it can't show these items.`;
+}

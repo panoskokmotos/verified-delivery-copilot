@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { allItems } from "../lib/items";
 import type { Delivery } from "../lib/types";
-import { BAR, ago, fmtDate } from "./labels";
+import { BAR, ago, fmtDate, photoUrl } from "./labels";
 import { Products } from "./products";
 import { verified } from "../lib/verified";
 
@@ -83,7 +83,7 @@ export function DeliveryCard({ d, linked = true }: { d: Delivery; linked?: boole
         {d.status === "approve" ? (
           <div className="photo-pair">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/api/photo/${d.id}`} alt={`Delivery proof at ${d.orgName}`} />
+            <img src={photoUrl(d)} alt={`Delivery proof at ${d.orgName}`} />
             <div><Products items={allItems(d)} /></div>
           </div>
         ) : (

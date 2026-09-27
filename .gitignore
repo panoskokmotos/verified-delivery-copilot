@@ -13,3 +13,4 @@ eval/report.md
 eval/fake/*.jpg
 eval/fake/*.jpeg
 eval/fake/*.png
+tsconfig.tsbuildinfo

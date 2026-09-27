@@ -1,4 +1,4 @@
-import { verified } from "./verified";
+import { complete, genuine, verified } from "./verified";
 import type { Delivery } from "./types";
 
 // Open delivery receipt, format "delivery-receipt/v1". Schema: docs/receipt.schema.json.
@@ -60,7 +60,7 @@ export function receiptLimits(d: Delivery): string[] {
 export function toReceipt(d: Delivery, origin: string): Receipt | null {
   const r = d.result;
   if (d.status !== "approve" || !r) return null;
-  const complete = r.vision.itemChecks.every((c) => c.status === "seen");
+  const whole = complete(r);
   return {
     schema: "delivery-receipt/v1",
     id: d.id,
@@ -72,7 +72,7 @@ export function toReceipt(d: Delivery, origin: string): Receipt | null {
     items: r.vision.itemChecks.map((c) => ({ name: c.name, expected: c.expected, seen: c.seen, status: c.status, where: c.where, note: c.note })),
     photo: { sha256: d.photoSha256 ?? null, dhash: r.integrity.hash, url: `${origin}/api/photo/${d.id}` },
     checks: {
-      genuine: !r.integrity.duplicateOf && r.integrity.aiLabel !== "generated" && r.vision.aiSuspicion !== "strong",
+      genuine: genuine(r),
       aiContentLabel: r.integrity.aiLabel,
       reusedPhoto: Boolean(r.integrity.duplicateOf),
       visualAiSigns: r.vision.aiSuspicion,
@@ -80,11 +80,11 @@ export function toReceipt(d: Delivery, origin: string): Receipt | null {
       takenInApp: Boolean(r.capture?.inApp),
       locationSharedWithPlatform: Boolean(r.capture?.location),
       packingSlipMatchesOrder: r.vision.slip?.matchesOrder ?? null,
-      complete,
+      complete: whole,
       passedCheck: verified(r),
       confirmedByNonprofit: true,
     },
-    verdict: !verified(r) ? "unverified" : complete ? "complete" : "partial",
+    verdict: !verified(r) ? "unverified" : whole ? "complete" : "partial",
     score: r.decision.score,
     limits: receiptLimits(d),
     thankYouNote: d.thankYouNote ?? null,

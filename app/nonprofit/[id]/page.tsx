@@ -25,7 +25,7 @@ export default async function NonprofitDelivery({ params }: { params: Promise<{ 
       {delivery.status === "shipping" && (
         <div className="notice">
           <div className="title">This delivery hasn&apos;t arrived yet</div>
-          <div>It&apos;s due on {fmtDate(delivery.arrivesAt)}. Take the photo once the items are with you: a photo from before then can&apos;t be sent to donors.</div>
+          <div>It&apos;s due on {fmtDate(delivery.arrivesAt)}. Take the photo once the items are with you: a photo from before then reaches donors marked Not verified.</div>
         </div>
       )}
       <Upload delivery={delivery} />
