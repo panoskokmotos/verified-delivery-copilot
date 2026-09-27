@@ -6,8 +6,18 @@ import type { VerificationResult } from "./types";
  */
 export function verified(r: VerificationResult): boolean {
   if (r.mode !== "live") return false; // a simulated check proves nothing
-  if (r.decision.verdict === "approve") return true;
-  return r.decision.verdict === "review" && r.vision.aiSuspicion === "none" && r.integrity.flags.length === 0 && !r.integrity.aiLabel;
+  if (r.decision.verdict === "approve") return !doubtful(r);
+  return r.decision.verdict === "review" && !doubtful(r);
+}
+
+/**
+ * Something casts doubt on the photo itself, not on which items show: signs of AI, an AI label,
+ * integrity flags (reuse, taken before the delivery date), or a catalog, stock or screenshot image.
+ */
+export function doubtful(r: VerificationResult): boolean {
+  // "No stock imagery" is a clean bill, not a concern.
+  const notAPhotoOfTheDelivery = r.vision.concerns.some((c) => !/^\s*(no|none|not)\b/i.test(c) && /stock|catalog|studio|screenshot|watermark/i.test(c));
+  return r.vision.aiSuspicion !== "none" || r.integrity.flags.length > 0 || Boolean(r.integrity.aiLabel) || notAPhotoOfTheDelivery;
 }
 
 /**

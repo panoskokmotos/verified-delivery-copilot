@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { askJson, isLive, models } from "./nebius";
 import type { LatLon } from "./geo";
 import { costOf, type Usage } from "./prices";
@@ -70,9 +71,31 @@ async function intake(input: VerifyInput, usage: Usage[]): Promise<Need> {
 
 // ---------- Step 2: the vision model checks each item against the photo ----------
 const VISION_HEDGE_MS = Number(process.env.VISION_HEDGE_MS || 20_000);
+/**
+ * Official product photos (from the wishlist lookup), so the model knows the real packaging. Up to 3,
+ * fetched here and shrunk, so the model host never has to reach a shop's servers; any that fail are skipped.
+ */
+async function referencePhotos(items: NeedItem[]): Promise<{ n: number; url: string }[]> {
+  const wanted = items.map((it, i) => ({ n: i + 1, src: it.image })).filter((x) => x.src?.startsWith("https://")).slice(0, 3);
+  const got = await Promise.all(
+    wanted.map(async ({ n, src }) => {
+      try {
+        const res = await fetch(src!, { signal: AbortSignal.timeout(5_000) });
+        if (!res.ok) return null;
+        const jpg = await sharp(Buffer.from(await res.arrayBuffer())).resize(384, 384, { fit: "inside" }).flatten({ background: "#ffffff" }).jpeg({ quality: 75 }).toBuffer();
+        return { n, url: `data:image/jpeg;base64,${jpg.toString("base64")}` };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return got.filter((x): x is { n: number; url: string } => Boolean(x));
+}
+
 async function vision(input: VerifyInput, need: Need, usage: Usage[]): Promise<VisionCheck> {
   if (!isLive()) return demoVision(need);
   const dataUrl = `data:image/jpeg;base64,${input.photo.toString("base64")}`;
+  const refs = await referencePhotos(input.items ?? []);
   const ask = (model: string) => askJson<VisionCheck>({
     usage,
     model,
@@ -95,6 +118,15 @@ async function vision(input: VerifyInput, need: Need, usage: Usage[]): Promise<V
           `Condition: ${need.condition}. Must show: ${need.mustHave.join(", ") || "n/a"}.`,
       },
       { type: "image_url", image_url: { url: dataUrl } },
+      ...(refs.length
+        ? [
+            {
+              type: "text" as const,
+              text: `The image above is the delivery photo: judge only that one. The next ${refs.length === 1 ? "image is the official product photo" : "images are official product photos"} for item${refs.length === 1 ? "" : "s"} ${refs.map((r) => r.n).join(", ")}, to show what the real packaging looks like.`,
+            },
+            ...refs.map((r) => ({ type: "image_url" as const, image_url: { url: r.url } })),
+          ]
+        : []),
     ],
   });
   // Gemma usually answers in 10 to 20s but sometimes stalls past 40s. If it hasn't answered by
@@ -214,9 +246,9 @@ async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: 
   });
 }
 
-export async function runVerification(input: VerifyInput, emit: Emit): Promise<VerificationResult> {
+/** `usage` collects every model call's tokens as they happen, so the caller can count them even if the check fails midway. */
+export async function runVerification(input: VerifyInput, emit: Emit, usage: Usage[] = []): Promise<VerificationResult> {
   const id = input.id ?? "DLV-" + Date.now().toString(36).toUpperCase();
-  const usage: Usage[] = []; // every model call's tokens, for the cost of this check
   const done = (r: Omit<VerificationResult, "id" | "mode" | "models" | "usage" | "cost">): VerificationResult => ({
     id, mode: isLive() ? "live" : "demo", models: isLive() ? { ...models } : undefined, ...r, usage, cost: costOf(usage),
   });

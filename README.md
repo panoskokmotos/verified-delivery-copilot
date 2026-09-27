@@ -12,13 +12,16 @@ Verified Delivery Copilot is an AI agent that checks each delivery photo before 
 4. **The nonprofit sees it first.** Every product gets a green tick, or a notice if it isn't fully visible. A genuine partial photo can be sent as is. A photo that fails can still be sent, but every donor sees it marked **Not verified**, with what the check found.
 5. **Close the loop.** Nemotron 3 Nano drafts the thank-you note, the nonprofit edits and sends it, and each donor gets a receipt: their own items numbered next to the photo, what was checked, and what a photo can't prove.
 
+It starts upstream, with the **wishlist**. A nonprofit lists the products it needs by pasting a product link or typing a name. Before any donor sees a product, the agent finds its official photo and searches **US CPSC, SaferProducts.gov and the EU Safety Gate** for recalls of that exact product (with Tavily), and Nemotron decides whether a notice really matches. A recalled product can't be given. The official photo later helps the vision model recognise the real packaging in the delivery photo, and the receipt says the products were checked for recalls.
+
 Privacy is built in: faces can be blurred on the phone before upload (the nonprofit switches it on), location goes to the platform only, and public receipts never name donors.
 
 ## Try it (2 minutes)
 
 1. Open the [live demo](https://verified-delivery-copilot.vercel.app) and tap **Start as the nonprofit**.
-2. Pick any delivery marked **Arrived**, tap **Open camera** (or choose a photo), and tap **Check photo**. It takes 15 to 40 seconds.
+2. Pick any delivery marked **Arrived**, tap **Open camera** (or choose a photo), and tap **Check photo**. It takes about 15 to 20 seconds.
 3. Send it, then open **Donors** and pick one of that delivery's donors to see the receipt.
+4. Open **Wishlists** to give a product; the gift becomes a new delivery you can check. As the nonprofit, open **Your wishlist** and add a product by link or name: the recall check takes about 10 seconds. Try adding "Fisher-Price Rock n Play Sleeper".
 
 To try to fool it: upload an image made with ChatGPT or Gemini, a photo showing only some of the items, or a photo for the delivery that hasn't arrived yet. The nonprofits and donors are fictional, and demo deliveries reset a few hours after a check.
 
@@ -32,10 +35,13 @@ Every model call goes through [Nebius Token Factory](https://tokenfactory.nebius
 | Everyday decision | `nvidia/nemotron-3-super-120b-a12b` | Same |
 | Borderline decision (genuine but incomplete, or uncertain) | `nvidia/Nemotron-3-Ultra-550b-a55b` | A wrong call here costs a donor's trust, so it gets the strongest reasoning |
 | Thank-you draft, JSON repair | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Speed matters more than depth |
+| Does a recall notice match this exact product? | `nvidia/nemotron-3-super-120b-a12b` | A short yes/no over search results; it can only cite a notice that was actually found |
 | Vision | `google/gemma-3-27b-it`, fallback `openbmb/MiniCPM-V-4_5` | No Nemotron vision model was available on our Token Factory account |
 
 - **Cost per check** is shown on every check, from the token usage Token Factory returns: about **$0.001** for a typical photo.
 - A fake with an AI label costs **zero** model calls: the free checks run first.
+- **Reasoning only where it pays.** Nemotron 3 thinks before answering unless told not to. The checklist, the thank-you note and the recall match run with thinking off (`chat_template_kwargs.enable_thinking: false`); the decision keeps it. The note went from 811 output tokens and 10.6 s to about 70 tokens and 1.1 s, and a whole check from 32 to 51 s to **13 to 20 s**.
+- **The backup vision model is raced, not waited for.** If Gemma hasn't answered after 20 s, MiniCPM-V starts too and the first answer wins.
 - Hard caps keep spend bounded: `NEBIUS_MAX_CALLS_PER_DAY` (default 300) and `MAX_VERIFICATIONS_PER_MONTH` (default 300).
 - **Nebius Serverless AI Jobs** run the evaluation in the background against the deployed app: see [Evaluation](#evaluation).
 
@@ -94,6 +100,12 @@ Results so far, on 16 fakes made with Gemini and ChatGPT:
 - A photo shows that items were present once. It can't show they were used, or that they stayed.
 - Without the AI label, a good AI image can pass the visual check. The label check, the reuse fingerprint, the live in-app camera and the delivery-date check make that harder, not impossible.
 - No model on Token Factory could locate objects with boxes, so item positions are described in words.
+- "No recalls found" means no notice in CPSC, SaferProducts.gov or the EU Safety Gate matched the product name when it was added. It is a search, not a certification, and it isn't re-run later.
+- Amazon doesn't allow its pages to be read, so an Amazon link needs the product name too.
+
+## Tavily
+
+Used only when a nonprofit adds a product to its wishlist: 2 calls per new product (read the product page or find its photo, then search the recall databases), cached per product, with a shared daily cap (`TAVILY_MAX_CALLS_PER_DAY`, default 40) and a stop before the monthly credits run out (`TAVILY_CREDIT_RESERVE`, read from Tavily's free usage endpoint). Code: [lib/tavily.ts](lib/tavily.ts), [lib/products.ts](lib/products.ts).
 
 ## Feedback on Nebius and NVIDIA
 

@@ -8,6 +8,7 @@ import { allItems } from "../../../lib/items";
 import { signCheck } from "../../../lib/sign";
 import { sendable } from "../../../lib/verified";
 import { AlreadySentError, getDelivery, preflight, proofKey, recordCalls, saveVerification } from "../../../lib/store";
+import type { Usage } from "../../../lib/prices";
 import type { StepEvent, VerificationResult } from "../../../lib/types";
 
 export const runtime = "nodejs";
@@ -84,9 +85,9 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       const emit = (e: StepEvent) => controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
+      const usage: Usage[] = []; // filled as each model call returns, so a check that fails midway is still counted
       try {
-        const result = await runVerification(input, emit);
-        await recordCalls(result.usage?.length ?? 0).catch(() => {}); // counting must never fail a check
+        const result = await runVerification(input, emit, usage);
         // How the photo was taken. Part of the signed result, so it can't change between check and send.
         result.capture = { inApp: form.get("capture") === "camera", location: input.uploadAt ?? null };
         if (delivery) {
@@ -117,6 +118,7 @@ export async function POST(req: Request) {
       } catch (err) {
         emit({ type: "error", error: err instanceof Error ? err.message : String(err) });
       } finally {
+        await recordCalls(usage.length).catch(() => {}); // counting must never fail a check
         controller.close();
       }
     },

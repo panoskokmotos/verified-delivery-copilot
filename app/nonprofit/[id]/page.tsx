@@ -18,7 +18,7 @@ export default async function NonprofitDelivery({ params }: { params: Promise<{ 
         <div className="body">
           <h1 style={{ fontSize: 24, margin: 0 }}>{delivery.orgName}</h1>
           <p className="sub" style={{ margin: "4px 0 0" }}>
-            {delivery.city} · order {delivery.orderCode} from {delivery.supplier} · {delivery.donations.length} donors
+            {delivery.city} · order {delivery.orderCode} from {delivery.supplier} · {delivery.donations.length} {delivery.donations.length === 1 ? "donor" : "donors"}
           </p>
         </div>
       </div>

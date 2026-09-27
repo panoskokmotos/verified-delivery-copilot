@@ -2,12 +2,12 @@ import { BlobPreconditionFailedError, get, head, put } from "@vercel/blob";
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
-import { SEED } from "./demo";
+import { ORGS, SEED, WISHLIST } from "./demo";
 import type { Seen } from "./integrity";
 import { MAX_CALLS_PER_DAY } from "./nebius";
 import { sha256 } from "./sign";
 import { verified } from "./verified";
-import type { Delivery } from "./types";
+import type { Delivery, Recall, WishItem } from "./types";
 
 // Storage: Vercel Blob (private store) in production, a local folder in dev.
 // Everything except photos lives in one state file, so a verification costs exactly two writes
@@ -22,6 +22,10 @@ type State = {
   day?: string; // YYYY-MM-DD (UTC) the call count below belongs to
   calls?: number; // model calls today, across every server copy
   deliveries: Record<string, Delivery>;
+  wishlist?: Record<string, WishItem[]>; // by nonprofit id; overrides the demo wishlist for that nonprofit
+  products?: Record<string, { name: string; image?: string; url?: string; price?: number; recall: Recall; at: string }>; // lookup cache
+  tavilyDay?: string;
+  tavilyCalls?: number; // Tavily calls today, across every server copy
 };
 
 const MAX_PER_MONTH = Number(process.env.MAX_VERIFICATIONS_PER_MONTH || 300);
@@ -212,3 +216,100 @@ export async function readPhoto(d: Delivery): Promise<Buffer | null> {
     return null;
   }
 }
+
+// ---------- Wishlists ----------
+
+const MAX_TAVILY_PER_DAY = Number(process.env.TAVILY_MAX_CALLS_PER_DAY || 40);
+const MAX_WISH_ITEMS = 12; // per nonprofit, so a busy demo can't grow the state file without bound
+
+export async function tavilyLeftToday(): Promise<number> {
+  const { state } = await readState();
+  return MAX_TAVILY_PER_DAY - (state.tavilyDay === today() ? state.tavilyCalls ?? 0 : 0);
+}
+
+/** Counts Tavily calls before they are made (one write each), so the cap holds across server copies. */
+export async function recordTavily(n: number) {
+  await mutateState((state) => {
+    if ((state.writes ?? 0) >= MAX_WRITES) throw new Error("This month's storage limit is reached. It resets on the 1st.");
+    if (state.tavilyDay !== today()) Object.assign(state, { tavilyDay: today(), tavilyCalls: 0 });
+    state.tavilyCalls = (state.tavilyCalls ?? 0) + n;
+    state.writes = (state.writes ?? 0) + 1;
+  });
+}
+
+const wishlistOf = (state: State, orgId: string): WishItem[] => state.wishlist?.[orgId] ?? WISHLIST[orgId] ?? [];
+
+export async function listWishlists(): Promise<Record<string, WishItem[]>> {
+  const { state } = await readState();
+  return Object.fromEntries(ORGS.map((o) => [o.id, wishlistOf(state, o.id)]));
+}
+
+/** A cached lookup for this product link or name, if one was made before. */
+export async function cachedProduct(key: string) {
+  const { state } = await readState();
+  return state.products?.[key] ?? null;
+}
+
+/** Adds a product to a nonprofit's wishlist and caches its lookup (one write). */
+export async function addWishItem(item: WishItem, cacheKey: string) {
+  await mutateState((state) => {
+    if ((state.writes ?? 0) >= MAX_WRITES - 200) throw new Error("This month's storage limit is reached. It resets on the 1st.");
+    const list = wishlistOf(state, item.orgId);
+    if (list.length >= MAX_WISH_ITEMS) throw new Error(`A wishlist holds up to ${MAX_WISH_ITEMS} products in this demo.`);
+    if (list.some((i) => i.key === cacheKey)) throw new Error("This product is already on your wishlist.");
+    state.wishlist = { ...state.wishlist, [item.orgId]: [...list, { ...item, key: cacheKey }] };
+    const { name, image, url, price, recall } = item;
+    if (recall) state.products = { ...state.products, [cacheKey]: { name, image, url, price, recall, at: new Date().toISOString() } };
+    state.writes = (state.writes ?? 0) + 1;
+  });
+}
+
+const supplierOf = (url?: string) => {
+  const host = url ? new URL(url).hostname.replace(/^www\./, "") : "";
+  const known: Record<string, string> = { "amazon.com": "Amazon", "walmart.com": "Walmart", "target.com": "Target", "chewy.com": "Chewy" };
+  return known[host] ?? (host || "Online store");
+};
+
+/**
+ * A donor gives from a wishlist (one write). The gift joins the nonprofit's open delivery, or starts one,
+ * carrying the product's photo and recall result so the photo check and the receipt can show them.
+ * In the demo the delivery counts as arrived at once, so the photo check can be tried straight away.
+ */
+export async function giveFromWishlist(orgId: string, itemId: string, donorId: string, donorName: string, quantity: number): Promise<string> {
+  let deliveryId = "";
+  await mutateState((state) => {
+    if ((state.writes ?? 0) >= MAX_WRITES - 200) throw new Error("This month's storage limit is reached. It resets on the 1st.");
+    const org = ORGS.find((o) => o.id === orgId);
+    const list = wishlistOf(state, orgId);
+    const item = list.find((i) => i.id === itemId);
+    if (!org || !item) throw new Error("Unknown product");
+    if (item.recall?.status === "found") throw new Error("This product has a recall notice, so it can't be given.");
+    if (quantity < 1 || quantity > item.quantity - item.given) throw new Error(`Only ${item.quantity - item.given} still needed.`);
+
+    const open = Object.values(state.deliveries).find((d) => d.id.startsWith(`wl-${orgId}-`) && d.status === "awaiting_photo");
+    const now = new Date().toISOString();
+    const base: Delivery = open ?? {
+      id: `wl-${orgId}-${Date.now().toString(36)}`,
+      orgName: org.name,
+      city: org.city,
+      cause: org.cause,
+      location: org.location,
+      supplier: supplierOf(item.url),
+      orderCode: `GL-${3000 + Math.floor(Math.random() * 6000)}`,
+      arrivesAt: today(),
+      status: "awaiting_photo",
+      donations: [],
+    };
+    const { id: _id, orgId: _org, addedAt: _at, given: _given, ...line } = item;
+    const mine = base.donations.find((x) => x.donorId === donorId);
+    const donations = mine
+      ? base.donations.map((x) => (x.donorId === donorId ? { ...x, items: [...x.items, { ...line, quantity }] } : x))
+      : [...base.donations, { donorId, donorName, items: [{ ...line, quantity }] }];
+    state.deliveries[base.id] = { ...base, donations, updatedAt: now };
+    state.wishlist = { ...state.wishlist, [orgId]: list.map((i) => (i.id === itemId ? { ...i, given: i.given + quantity } : i)) };
+    state.writes = (state.writes ?? 0) + 1;
+    deliveryId = base.id;
+  });
+  return deliveryId;
+}
+

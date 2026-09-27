@@ -1,6 +1,7 @@
 import { itemCount, itemValue } from "../lib/items";
 import type { NeedItem } from "../lib/types";
 import { money, productIcon } from "./labels";
+import { RecallBadge } from "./recall-badge";
 
 /** Products in a delivery as cards, with the item count and value above them. */
 export function Products({ items }: { items: NeedItem[] }) {
@@ -18,6 +19,7 @@ export function Products({ items }: { items: NeedItem[] }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <div className="img">{i.image ? <img src={i.image} alt={i.name} /> : productIcon(i.name)}</div>
             <div className="name">{i.name}</div>
+            <RecallBadge recall={i.recall} />
           </div>
         ))}
       </div>

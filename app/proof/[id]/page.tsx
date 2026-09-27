@@ -30,6 +30,10 @@ function passed(d: Delivery): string[] {
   if (!r.integrity.duplicateOf) out.push("The photo doesn't match any earlier delivery photo.");
   if (r.vision.aiSuspicion === "none") out.push("No visual signs of an AI-generated image.");
   if (r.capture?.inApp) out.push("Taken live with the app's camera, not picked from a gallery.");
+  const recallChecked = allItems(d).filter((i) => i.recall?.status === "clear");
+  if (recallChecked.length) {
+    out.push(`No recall notices for ${recallChecked.length === 1 ? recallChecked[0].name : `${recallChecked.length} of the products`} in ${recallChecked[0].recall!.searched.join(", ")}.`);
+  }
   if (r.vision.slip?.matchesOrder) out.push(`The packing slip in the photo shows this delivery's order, ${r.vision.slip.orderCode}.`);
   out.push("The nonprofit saw this check and confirmed it before donors were told.");
   return out;
@@ -88,7 +92,7 @@ export default async function Receipt({ params, searchParams }: { params: Promis
             {r.vision.slip?.matchesOrder && <span className="pill success" style={{ marginLeft: 6 }}>🧾 Packing slip matches order</span>}
             <h1 style={{ fontSize: 26, margin: "10px 0 4px" }}>{d.orgName}</h1>
             <p className="sub" style={{ margin: 0 }}>
-              {d.city} · {itemCount(allItems(d))} items from {d.donations.length} donors · arrived {fmtDate(d.arrivesAt)} · checked {d.updatedAt ? fmtDate(d.updatedAt) : ""}
+              {d.city} · {itemCount(allItems(d))} items from {d.donations.length} {d.donations.length === 1 ? "donor" : "donors"} · arrived {fmtDate(d.arrivesAt)} · checked {d.updatedAt ? fmtDate(d.updatedAt) : ""}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

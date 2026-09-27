@@ -61,7 +61,7 @@ export default async function DonorGifts({ params }: { params: Promise<{ donorId
               <div className="receipt-head">
                 <div>
                   <div className="title">{mine.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}</div>
-                  <div className="sub">To {d.orgName}, {d.city} · part of a delivery from {d.donations.length} donors</div>
+                  <div className="sub">To {d.orgName}, {d.city} · part of a delivery from {d.donations.length} {d.donations.length === 1 ? "donor" : "donors"}</div>
                 </div>
                 <span className={`pill ${!proven ? "pending" : !verified(d.result!) ? "danger" : complete(d.result!) ? "success" : "warning"}`}>
                   {proven && !verified(d.result!)

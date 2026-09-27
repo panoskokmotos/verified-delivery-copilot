@@ -5,7 +5,21 @@ export type NeedItem = {
   unit: string;
   price?: number; // USD per unit, for display
   image?: string; // product photo URL from the catalog, shown next to the delivery photo for comparison
+  url?: string; // the product page the nonprofit picked it from
+  recall?: Recall; // recall search when it was added to a wishlist
 };
+
+/** A recall search for one product in public recall databases, run when it is added to a wishlist. */
+export type Recall = {
+  status: "clear" | "found";
+  checkedAt: string;
+  summary: string; // one plain sentence
+  source: { title: string; url: string } | null; // the recall notice, when one was found
+  searched: string[]; // the databases searched
+};
+
+/** A product a nonprofit asks for. Donors give from it; gifts become a delivery. */
+export type WishItem = NeedItem & { id: string; orgId: string; addedAt: string; given: number; key?: string };
 
 export type Need = {
   items: NeedItem[];

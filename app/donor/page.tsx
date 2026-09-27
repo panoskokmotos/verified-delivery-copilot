@@ -13,6 +13,7 @@ export default async function DonorPicker() {
         <Link className="back" href="/">← Home</Link>
         <h1>Who's giving?</h1>
         <p>Demo donors. Each one gave to one or more batched deliveries.</p>
+        <p style={{ marginTop: 8 }}><Link className="btn subtle sm" href="/wishlist">Browse what nonprofits need</Link></p>
       </header>
       <ul className="list">
         {Object.entries(DONORS).map(([id, name]) => {

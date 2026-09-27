@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usd } from "../lib/prices";
+import { doubtful as isDoubtful } from "../lib/verified";
 import type { IntegrityCheck, ItemCheck, Need, StepEvent, StepName, VerificationResult, VisionCheck } from "../lib/types";
 
 export const STEPS: { key: StepName; title: string; what: string }[] = [
@@ -173,7 +174,7 @@ const HEADLINE = { approve: "Every item checks out", review: "Genuine photo, som
 export function Verdict({ result }: { result: VerificationResult }) {
   const flags = result.integrity.flags.filter((f) => !result.decision.reasons.includes(f));
   // A "review" with visual AI signs or integrity flags is about the photo, not missing items.
-  const doubtful = result.decision.verdict === "review" && (result.vision.aiSuspicion !== "none" || flags.length > 0 || Boolean(result.integrity.aiLabel));
+  const doubtful = result.decision.verdict !== "reject" && isDoubtful(result);
   return (
     <>
       {result.mode !== "live" && (

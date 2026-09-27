@@ -3,6 +3,7 @@ import { parseLatLon } from "../../../../lib/geo";
 import { normalizePhoto } from "../../../../lib/photo";
 import { CALLS_PER_CHECK } from "../../../../lib/nebius";
 import { runVerification } from "../../../../lib/pipeline";
+import type { Usage } from "../../../../lib/prices";
 import { preflight, recordCalls } from "../../../../lib/store";
 import type { NeedItem } from "../../../../lib/types";
 import { complete, genuine } from "../../../../lib/verified";
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
   if (callsLeftToday < CALLS_PER_CHECK) return Response.json({ error: "Today's model call limit is reached. It resets at midnight UTC." }, { status: 429 });
   const raw = Buffer.from(await photo.arrayBuffer());
   const deliveryId = String(form.get("deliveryId") || "") || undefined;
+  const usage: Usage[] = []; // counted in finally, so a check that fails midway still counts
   try {
     const result = await runVerification(
       {
@@ -71,8 +73,8 @@ export async function POST(req: Request) {
         uploadAt: parseLatLon(form.get("uploadLat"), form.get("uploadLon")),
       },
       () => {},
+      usage,
     );
-    await recordCalls(result.usage?.length ?? 0).catch(() => {});
     const { vision: v, integrity: i, decision } = result;
     return Response.json({
       verdict: decision.verdict, // approve: complete · review: genuine but partial or uncertain · reject: not genuine or shows none of it
@@ -101,5 +103,7 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 502 });
+  } finally {
+    await recordCalls(usage.length).catch(() => {});
   }
 }

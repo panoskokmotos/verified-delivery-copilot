@@ -30,7 +30,7 @@ export default function Home() {
             <div>
               <div className="title">Watch the agent check it</div>
               <div className="sub">
-                About 15 to 40 seconds. Each product gets a green tick only if the photo shows it. A random photo is rejected; a photo of
+                About 15 to 20 seconds. Each product gets a green tick only if the photo shows it. A random photo is rejected; a photo of
                 the donated items passes.
               </div>
             </div>
@@ -68,6 +68,11 @@ export default function Home() {
           <span className="pill pending">Nonprofit</span>
           <div className="heading">Upload delivery proof</div>
           <p className="sub">See what donors sent, add one photo, and check every item before it goes to the donors.</p>
+        </Link>
+        <Link className="card role" href="/wishlist">
+          <span className="pill warning">Wishlists</span>
+          <div className="heading">Give what&apos;s needed</div>
+          <p className="sub">Nonprofits list products by link or name. Each is checked against US and EU recall databases before anyone can give it.</p>
         </Link>
         <Link className="card role" href="/donor">
           <span className="pill success">Donor</span>

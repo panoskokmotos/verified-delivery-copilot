@@ -1,4 +1,4 @@
-import type { Delivery } from "./types";
+import type { Delivery, WishItem } from "./types";
 
 // Demo deliveries. The nonprofits are fictional; on Givelink they are nonprofits the platform
 // already verified, and each delivery batches the gifts of several donors.
@@ -86,3 +86,22 @@ export const SEED: Delivery[] = [
     ],
   },
 ];
+
+/** The demo nonprofits, one per seeded delivery. On Givelink these are nonprofits the platform verified. */
+export const ORGS = SEED.map((d) => ({ id: d.id, name: d.orgName, city: d.city, cause: d.cause, location: d.location }));
+
+// A starting wishlist for each nonprofit, before any recall search. Products added in the app get
+// their name, photo and recall result from a lookup.
+const wish = (orgId: string, n: number, item: Omit<WishItem, "id" | "orgId" | "addedAt" | "given">): WishItem => ({
+  id: `${orgId}-seed-${n}`,
+  orgId,
+  addedAt: day(-10),
+  given: 0,
+  ...item,
+});
+export const WISHLIST: Record<string, WishItem[]> = {
+  "paws-of-hope": [wish("paws-of-hope", 1, { ...DOG_FOOD, quantity: 10 }), wish("paws-of-hope", 2, { ...PET_BLANKET, quantity: 12 })],
+  "lantern-school": [wish("lantern-school", 1, { ...BACKPACK, quantity: 20 }), wish("lantern-school", 2, { ...NOTEBOOK, quantity: 60 })],
+  "bluebell-pantry": [wish("bluebell-pantry", 1, { ...DIAPERS, quantity: 30 }), wish("bluebell-pantry", 2, { ...WIPES, quantity: 20 })],
+  "northgate-shelter": [wish("northgate-shelter", 1, { ...COAT, quantity: 40 })],
+};
