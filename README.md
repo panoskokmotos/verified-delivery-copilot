@@ -12,7 +12,7 @@ Verified Delivery Copilot is an AI agent that checks each delivery photo before 
 4. **The nonprofit sees it first.** Every product gets a green tick, or a notice if it isn't fully visible. A genuine partial photo can be sent as is. A photo that fails can still be sent, but every donor sees it marked **Not verified**, with what the check found.
 5. **Close the loop.** Nemotron 3 Nano drafts the thank-you note, the nonprofit edits and sends it, and each donor gets a receipt: their own items numbered next to the photo, what was checked, and what a photo can't prove.
 
-Privacy is built in: faces are blurred on the phone before upload, location goes to the platform only, and public receipts never name donors.
+Privacy is built in: faces can be blurred on the phone before upload (the nonprofit switches it on), location goes to the platform only, and public receipts never name donors.
 
 ## Try it (2 minutes)
 

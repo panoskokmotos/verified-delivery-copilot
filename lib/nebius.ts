@@ -54,6 +54,10 @@ export function extractJson<T>(text: string): T {
   return JSON.parse(candidate.slice(start, end + 1)) as T;
 }
 
+// Nemotron 3 reasons before answering unless told not to. For a short note that meant 165 output tokens
+// instead of 43 and 2.2s instead of 0.9s, with the same text. Other models ignore the flag.
+const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } } as object;
+
 type Content = OpenAI.Chat.Completions.ChatCompletionContentPart[] | string;
 
 export async function askJson<T>(opts: {
@@ -61,6 +65,7 @@ export async function askJson<T>(opts: {
   system: string;
   user: Content;
   maxTokens?: number;
+  think?: boolean; // false turns Nemotron's reasoning off: for steps where speed matters more than depth
   usage?: Usage[]; // token counts of every call made here get appended, for the cost of the check
 }): Promise<T> {
   const track = (model: string, u?: OpenAI.CompletionUsage) =>
@@ -74,6 +79,7 @@ export async function askJson<T>(opts: {
       { role: "system", content: opts.system + "\nReply with one JSON object only. No prose." },
       { role: "user", content: opts.user },
     ],
+    ...(opts.think === false ? NO_THINKING : {}),
   });
   track(opts.model, res.usage);
   const text = res.choices[0]?.message?.content ?? "";
@@ -90,6 +96,7 @@ export async function askJson<T>(opts: {
         { role: "system", content: "Convert the text into one valid JSON object. Output JSON only." },
         { role: "user", content: text },
       ],
+      ...NO_THINKING,
     });
     track(models.writer, fix.usage);
     return extractJson<T>(fix.choices[0]?.message?.content ?? "");

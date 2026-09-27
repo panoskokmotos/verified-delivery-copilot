@@ -55,6 +55,7 @@ async function intake(input: VerifyInput, usage: Usage[]): Promise<Need> {
   const need = await askJson<Need>({
     usage,
     model: models.reasoning,
+    think: false, // the donors' list is already the answer; this only adds condition and must-haves
     system:
       "You structure in-kind donations into a checklist a delivery photo can be checked against. " +
       "Return: items (list of {name, quantity (integer, 1 if unstated), unit}), condition ('new'|'gently_used'|'any'), category, " +
@@ -68,16 +69,19 @@ async function intake(input: VerifyInput, usage: Usage[]): Promise<Need> {
 }
 
 // ---------- Step 2: the vision model checks each item against the photo ----------
+const VISION_HEDGE_MS = Number(process.env.VISION_HEDGE_MS || 20_000);
 async function vision(input: VerifyInput, need: Need, usage: Usage[]): Promise<VisionCheck> {
   if (!isLive()) return demoVision(need);
   const dataUrl = `data:image/jpeg;base64,${input.photo.toString("base64")}`;
   const ask = (model: string) => askJson<VisionCheck>({
     usage,
     model,
-    maxTokens: 1000,
+    maxTokens: 700,
     system:
       "You audit delivery photos for a donation marketplace. Be skeptical and literal. Only report what is visible. " +
-      "Return: itemsSeen (list), itemChecks (one entry per expected item, same order: {name, expected, seen (int or null if uncountable), " +
+      // The answer's length sets the latency (about 12 tokens a second), so keep it short.
+      "Answer with compact JSON on one line, no extra keys, every string under 12 words. " +
+      "Return: itemsSeen (up to 5 short names), itemChecks (one entry per expected item, same order: {name, expected, seen (int or null if uncountable), " +
       "status ('seen' all or nearly all visible | 'partial' some visible | 'missing' not visible | 'unclear' can't tell), note (one short sentence), where (where it sits in the photo in a few words a person can follow, e.g. 'front left, blue bags' or 'not visible')}), " +
       "aiSuspicion ('none'|'some'|'strong': visual signs the image is AI-generated, e.g. garbled label text, melted shapes, impossible lighting, repeated textures), " +
       "condition ('new'|'used'|'damaged'|'unclear'), deliveryContext (one sentence: where this seems to be, e.g. shelter storage room, doorstep, stock photo), " +
@@ -93,15 +97,19 @@ async function vision(input: VerifyInput, need: Need, usage: Usage[]): Promise<V
       { type: "image_url", image_url: { url: dataUrl } },
     ],
   });
-  let model = models.vision;
-  let v: VisionCheck;
-  try {
-    v = await ask(model);
-  } catch {
-    // The primary vision model timed out or failed. Try the fallback once, and say so on the result.
-    model = models.visionFallback;
-    v = await ask(model);
-  }
+  // Gemma usually answers in 10 to 20s but sometimes stalls past 40s. If it hasn't answered by
+  // VISION_HEDGE_MS (or fails), start the fallback too and take whichever answers first. The extra
+  // call is only spent on slow checks. The result says which model answered.
+  let answered = false;
+  const primary = ask(models.vision).then((v) => ((answered = true), { v, model: models.vision }));
+  const backup = new Promise<void>((go) => {
+    const t = setTimeout(go, VISION_HEDGE_MS);
+    primary.catch(() => (clearTimeout(t), go()));
+  }).then(() => {
+    if (answered) throw new Error("not needed");
+    return ask(models.visionFallback).then((v) => ({ v, model: models.visionFallback }));
+  });
+  const { v, model } = await Promise.any([primary, backup]);
   // Keep one check per expected item, in order, even if the model skipped or renamed one.
   const itemChecks: ItemCheck[] = need.items.map((it, n) => {
     const c = v.itemChecks?.[n];
@@ -197,6 +205,7 @@ async function impact(input: VerifyInput, need: Need, v: VisionCheck, decision: 
   return askJson<ImpactNote>({
     usage,
     model: models.writer,
+    think: false,
     system:
       "Draft the thank-you note a nonprofit sends to the donors of a delivery that just arrived, in the nonprofit's voice (we). " +
       "Specific and warm: name the items and what they unlock for the people or animals served. No clichés, no exclamation marks, no em dashes. " +

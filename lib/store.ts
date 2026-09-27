@@ -1,4 +1,4 @@
-import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
+import { BlobPreconditionFailedError, get, head, put } from "@vercel/blob";
 import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
@@ -32,12 +32,15 @@ const useBlob = () => Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const empty = (): State => ({ month: thisMonth(), verifications: 0, writes: 0, hashes: [], deliveries: {} });
 
-async function readState(): Promise<{ state: State; etag?: string }> {
+async function readState(fresh = false): Promise<{ state: State; etag?: string }> {
   if (useBlob()) {
     // useCache: false reads the latest version. Cached reads can lag an overwrite by 60s.
     const r = await get(STATE, { access: "private", useCache: false });
     if (!r || r.statusCode !== 200) return { state: empty() };
-    return { state: JSON.parse(await new Response(r.stream).text()), etag: r.blob.etag };
+    const state = JSON.parse(await new Response(r.stream).text());
+    // On a retry, take the version tag from head(), which asks storage directly, as the Blob docs do.
+    // A read can still hand back an older copy's tag, and then every conditional write is refused.
+    return { state, etag: fresh ? (await head(STATE)).etag : r.blob.etag };
   }
   try {
     return { state: JSON.parse(await fs.readFile(path.join(LOCAL, STATE), "utf8")) };
@@ -97,8 +100,8 @@ export async function preflight(): Promise<{ seen: Seen[]; budgetLeft: number; c
 /** Adds a finished check's model calls to today's shared count (one write). */
 export async function recordCalls(n: number) {
   if (n <= 0) return;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { state, etag } = await readState();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { state, etag } = await readState(attempt > 0);
     if (state.month !== thisMonth()) Object.assign(state, { month: thisMonth(), verifications: 0, writes: 0 });
     if ((state.writes ?? 0) >= MAX_WRITES) return; // storage budget spent: the per-process cap still holds
     if (state.day !== today()) Object.assign(state, { day: today(), calls: 0 });
@@ -108,14 +111,16 @@ export async function recordCalls(n: number) {
       return await writeState(state, etag);
     } catch (err) {
       if (!(err instanceof BlobPreconditionFailedError)) throw err;
+      console.warn(`state.json changed under us (attempt ${attempt + 1}, etag ${etag})`);
+      await new Promise((ok) => setTimeout(ok, 300 * (attempt + 1)));
     }
   }
 }
 
 /** Changes one delivery in the state file (one write). Throws when this month's write budget is spent. */
 export async function updateDelivery(id: string, change: (d: Delivery) => Delivery) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { state, etag } = await readState();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { state, etag } = await readState(attempt > 0);
     if (state.month !== thisMonth()) Object.assign(state, { month: thisMonth(), verifications: 0, writes: 0 });
     if ((state.writes ?? 0) >= MAX_WRITES) throw new Error("This month's storage limit is reached. It resets on the 1st.");
     const current = state.deliveries[id] ?? SEED.find((d) => d.id === id);
@@ -126,6 +131,8 @@ export async function updateDelivery(id: string, change: (d: Delivery) => Delive
       return await writeState(state, etag);
     } catch (err) {
       if (!(err instanceof BlobPreconditionFailedError)) throw err;
+      console.warn(`state.json changed under us (attempt ${attempt + 1}, etag ${etag})`);
+      await new Promise((ok) => setTimeout(ok, 300 * (attempt + 1)));
     }
   }
   throw new Error("Could not save. Please try again.");
@@ -134,8 +141,8 @@ export async function updateDelivery(id: string, change: (d: Delivery) => Delive
 /** Saves a finished verification: the photo, then the delivery and its fingerprint in one state write. */
 export async function saveVerification(delivery: Delivery, photo: Buffer) {
   await savePhoto(delivery.id, photo);
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { state, etag } = await readState();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { state, etag } = await readState(attempt > 0);
     if (state.month !== thisMonth()) Object.assign(state, { month: thisMonth(), verifications: 0, writes: 0 });
     state.verifications++;
     state.writes = (state.writes ?? 0) + 2; // the photo and this state file
@@ -149,6 +156,8 @@ export async function saveVerification(delivery: Delivery, photo: Buffer) {
     } catch (err) {
       // Someone else saved in between. Re-read and apply our change on top.
       if (!(err instanceof BlobPreconditionFailedError)) throw err;
+      console.warn(`state.json changed under us (attempt ${attempt + 1}, etag ${etag})`);
+      await new Promise((ok) => setTimeout(ok, 300 * (attempt + 1)));
     }
   }
   throw new Error("Could not save the verification. Please try again.");

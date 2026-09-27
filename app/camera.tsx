@@ -29,8 +29,8 @@ async function toCanvas(src: CanvasImageSource, w: number, h: number): Promise<H
 
 /**
  * Proof is taken with the phone camera inside the page, so it's a photo of now, not an old one from the
- * gallery. Location is asked for at the same moment. Faces are found and blurred on the phone; the
- * unblurred photo never leaves it, unless everyone pictured agreed to be shown.
+ * gallery. Location is asked for at the same moment. Faces are found on the phone, and the
+ * nonprofit can blur them there before sending, so an unblurred face never has to leave the phone.
  */
 export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void; disabled?: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
@@ -38,7 +38,7 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
   const [live, setLive] = useState<MediaStream | null>(null);
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [consent, setConsent] = useState(false);
+  const [blur, setBlur] = useState(false); // off by default: the nonprofit turns it on when people are in the photo
   const [source, setSource] = useState<{ canvas: HTMLCanvasElement; faces: Box[]; inApp: boolean; meta?: Blob; name: string } | null>(null);
   const [shot, setShot] = useState<Shot | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -73,7 +73,7 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
     try {
       faces = await findFaces(canvas);
     } catch {
-      setStatus("Couldn't run face blurring on this device. Only send photos where everyone agreed to be shown.");
+      setStatus("Couldn't look for faces on this device. Only send photos where everyone agreed to be shown.");
     }
     setSource({ canvas, faces, inApp, meta, name });
     setStatus(null);
@@ -108,14 +108,14 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
     await process(c, source.inApp, source.name, source.meta);
   }
 
-  // Build what gets sent whenever the photo or the consent switch changes.
+  // Build what gets sent whenever the photo or the blur switch changes.
   useEffect(() => {
     if (!source) return;
     const out = document.createElement("canvas");
     out.width = source.canvas.width;
     out.height = source.canvas.height;
     out.getContext("2d")!.drawImage(source.canvas, 0, 0);
-    if (!consent) blurFaces(out, source.faces);
+    if (blur) blurFaces(out, source.faces);
     out.toBlob(
       (blob) => {
         if (!blob) return;
@@ -126,7 +126,7 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
       "image/jpeg",
       0.88,
     );
-  }, [source, consent, location, onShot]);
+  }, [source, blur, location, onShot]);
 
   return (
     <div className="camera">
@@ -159,7 +159,7 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
           <ul>
             <li>All donated items, with labels readable</li>
             <li>A packing slip or label, if you have one</li>
-            <li>Faces are blurred on your phone before upload</li>
+            <li>People in the photo? You can blur their faces before sending</li>
           </ul>
         </div>
       )}
@@ -167,13 +167,13 @@ export function Camera({ onShot, disabled }: { onShot: (s: Shot | null) => void;
         <div className="shot-info">
           <span className={`pill ${shot.inApp ? "success" : "warning"}`}>{shot.inApp ? "📸 Taken live in the app" : "From the gallery"}</span>
           {shot.location && <span className="pill">📍 Location shared with Givelink</span>}
-          <span className="pill">{consent ? "Faces shown" : `${shot.faces} ${shot.faces === 1 ? "face" : "faces"} blurred`}</span>
+          {blur && <span className="pill">{shot.faces} {shot.faces === 1 ? "face" : "faces"} blurred</span>}
         </div>
       )}
       {source && source.faces.length > 0 && (
         <label className="check">
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          Everyone pictured agreed to be shown
+          <input type="checkbox" checked={blur} onChange={(e) => setBlur(e.target.checked)} />
+          Blur the {source.faces.length === 1 ? "face" : `${source.faces.length} faces`} we found before sending
         </label>
       )}
       {status && <p className="sub">{status}</p>}

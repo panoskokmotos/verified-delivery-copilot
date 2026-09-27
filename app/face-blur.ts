@@ -38,7 +38,7 @@ export async function findFaces(img: CanvasImageSource & { width: number; height
         for (const d of det.detect(tile).detections) {
           const score = d.categories?.[0]?.score ?? 0;
           const b = d.boundingBox;
-          if (score < 0.6 || !b) continue;
+          if (score < 0.8 || !b) continue; // lower thresholds flagged boxes and posters as faces
           const k = size / 256;
           found.push({ x: x0 + b.originX * k, y: y0 + b.originY * k, w: b.width * k, h: b.height * k, score });
         }
