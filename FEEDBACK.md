@@ -18,6 +18,14 @@ Required for the Devpost submission. Log each item when it happens. Format: date
 
 ## NVIDIA Nemotron 3 Super (reasoning)
 
+- 2026-10-27, decision step: the reviewer may keep the rule verdict or make it stricter. For a genuine photo where the vision step saw 1 of 1 items and the rule score was 93, Super still changed "approve" to "review", citing "the brand label is not clearly visible", "seal integrity" and "size not readable". It only receives the vision results as text, so it had no evidence for any of these. We added an explicit instruction that unreadable labels are never a reason to be stricter; it kept doing it. Fix: better instruction following for "only use these reasons" constraints, or a documented way to constrain a field to a fixed list of grounds.
+
+- 2026-10-27, structured output: asked for `reasons` as an array of strings, the model sometimes returned one plain string. Our UI then showed the first letter ("T") as the reason. We now normalise it in code. Fix: enforce the JSON schema server side (strict structured output) on Token Factory.
+
+- 2026-10-27, evaluation: the same 23 labelled photos gave different verdicts on back-to-back runs with the same code. Approved real photos went 3, then 4, then 3 of 7; stripped AI fakes rejected went 1, then 2 of 8. Single runs can't measure a one-line prompt change. Fix: document how to get reproducible outputs (a supported `seed`, or which parameters make runs deterministic).
+
+- 2026-09-26, latency: Nemotron 3 reasons before answering unless told not to. Our thank-you note took 811 output tokens and 10.6 s until we found `chat_template_kwargs.enable_thinking: false`, which cut it to about 70 tokens and 1.1 s. Fix: put the thinking switch in the Token Factory model page and quickstart.
+
 ## NVIDIA Nemotron 3 Nano (writing)
 
 - 2026-09-26, model setup: the ID is `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`, while Super is `nvidia/nemotron-3-super-120b-a12b`. The naming is inconsistent across the family, so our guessed ID was wrong. Fix: one naming scheme.
