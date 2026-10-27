@@ -43,7 +43,7 @@ Every model call goes through [Nebius Token Factory](https://tokenfactory.nebius
 - **Reasoning only where it pays.** Nemotron 3 thinks before answering unless told not to. The checklist, the thank-you note and the recall match run with thinking off (`chat_template_kwargs.enable_thinking: false`); the decision keeps it. The note went from 811 output tokens and 10.6 s to about 70 tokens and 1.1 s, and a whole check from 32 to 51 s to **13 to 20 s**.
 - **The backup vision model is raced, not waited for.** If Gemma hasn't answered after 20 s, MiniCPM-V starts too and the first answer wins.
 - Hard caps keep spend bounded: `NEBIUS_MAX_CALLS_PER_DAY` (default 300) and `MAX_VERIFICATIONS_PER_MONTH` (default 300).
-- **Nebius Serverless AI Jobs** run the evaluation in the background against the deployed app: see [Evaluation](#evaluation).
+- A job script for **Nebius Serverless AI Jobs** can run the evaluation against the deployed app: see [Evaluation](#evaluation).
 
 Code: [lib/nebius.ts](lib/nebius.ts) (client, routing, caps), [lib/pipeline.ts](lib/pipeline.ts) (the agent), [lib/prices.ts](lib/prices.ts) (cost).
 
@@ -87,13 +87,14 @@ Import the repo on Vercel, set `NEBIUS_API_KEY` and `RECEIPT_SECRET`, and connec
 
 `npm run eval` sends every labelled photo in `eval/real/` and `eval/fake/` through `/api/v1/verify` and writes `eval/report.md`. Real delivery photos stay local: `eval/real/` is gitignored.
 
-To run it as a **Nebius Serverless AI Job**, put the labelled photos in a private Nebius Object Storage bucket and run [scripts/nebius-eval-job.sh](scripts/nebius-eval-job.sh). It mounts the bucket into a `node:22-slim` job and writes the report back.
+To run it as a **Nebius Serverless AI Job**, put the labelled photos in a private Nebius Object Storage bucket and run [scripts/nebius-eval-job.sh](scripts/nebius-eval-job.sh). It mounts the bucket into a `node:22-slim` job and writes the report back. We have not run it as a job yet; the results below are from a local run.
 
-Results so far, on 16 fakes made with Gemini and ChatGPT:
+Results from Oct 27, 2026:
 
-- **8 of 8** with their AI label intact were rejected, with zero model calls.
-- With the label stripped (as a screenshot does), **1 of 8** was rejected and 3 more were flagged as doubtful, so they can't be sent as verified. **4 of 8 were not caught.** This is why every receipt lists what a photo can't prove.
-- Real Givelink deliveries: [pending].
+- **Real Givelink deliveries, checked against their actual orders: 4 of 4 right.** 3 confirmed complete, 1 flagged as partial (4 of 10 hair dryers in the photo). None wrongly rejected. 3 more real photos without order data were not rejected either.
+- **8 of 8** fakes made with Gemini and ChatGPT were rejected with their AI label intact, with zero model calls.
+- With the label stripped (as a screenshot does), only **1 to 2 of 8** were rejected across runs, and **1 of 8 was approved**. This is the weak spot. Photos taken live in the app are the answer, and every receipt says when a photo came from the gallery and what a photo can't prove.
+- Results vary by about one case between runs, because the models are not fully deterministic.
 
 ## Limits
 
