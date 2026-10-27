@@ -213,6 +213,7 @@ async function decide(
       "You are the final reviewer for a donation delivery. A rule engine proposed a verdict. You may keep it or make it stricter (approve->review, review->reject), never looser. " +
       "'reject' means the photo is not genuine (AI-generated, reused, staged stock image) or shows none of the donated items. " +
       "A genuine photo where some items are missing, partly visible or hard to count is 'review', never 'reject': the nonprofit gets a notice and may retake it. " +
+      "A brand name, label or packaging text that is unreadable or not shown is never a reason to make the verdict stricter; items in sealed or clear wrapping count as seen. Only missing items or signs the photo is not genuine are. " +
       "The photo is the only evidence a nonprofit provides: never ask for receipts, delivery slips, addresses or signatures. " +
       "Return verdict ('approve'|'review'|'reject'), reasons (2-4 short plain sentences a nonprofit ops person understands), " +
       "nextAction (one concrete instruction to the nonprofit, e.g. 'Retake the photo so the size labels on the coats are readable').",
@@ -223,7 +224,9 @@ async function decide(
   // The reviewer may only reject for a reason about the photo itself, not for missing items.
   const suspicious = flags.length > 0 || v.aiSuspicion !== "none";
   if (verdict === "reject" && base !== "reject" && !suspicious) verdict = "review";
-  return { verdict, score, reasons: d.reasons, nextAction: d.nextAction, model };
+  // The model sometimes returns reasons as one string; indexing that shows a single letter.
+  const reasons = Array.isArray(d.reasons) ? d.reasons.map(String) : d.reasons ? [String(d.reasons)] : [];
+  return { verdict, score, reasons, nextAction: d.nextAction, model };
 }
 
 // ---------- Step 6: draft the nonprofit's thank-you note ----------
